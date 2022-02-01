@@ -409,7 +409,7 @@ int main(int argc, char **argv) {
       perror("connection failed --\n");
       continue;
     }
-    int request_line_size = 100;
+    int request_line_size = 200;
     printf("got client connection ---\n");
 
     if (!fork()) {
@@ -418,8 +418,36 @@ int main(int argc, char **argv) {
       close(fd_server);
 
       memset(buf, 0, MAX_BUF);
+      int not_done_reading = 1;
+      char *currentLine = (char*)malloc(sizeof(char)*request_line_size);
+      memset(currentLine, 0, request_line_size);
+      int emptyLines = 0;
+      while (not_done_reading == 1) {
+       read(fd_client, currentLine, request_line_size);
+       strncat(buf, currentLine, strlen(currentLine));
 
-      read(fd_client, buf, MAX_BUF - 1);
+       // check if line has \r\n\r\n
+       printf("\t---line = \"%s\" - empty lines = %d\n", currentLine, emptyLines);
+       if (strstr(currentLine, "") != NULL) {
+        printf(" fml fml fml fml\n");
+       }
+
+       if (strstr(currentLine, "\r\n\r\n") != NULL) {
+        not_done_reading = 0;
+       } else if (strcmp(CRLF, currentLine) == 0) {
+        emptyLines++;
+        if (emptyLines == 1) {
+         not_done_reading = 0;
+         printf("wtf %d\n", emptyLines);
+        }
+       }
+       memset(currentLine, 0, request_line_size);
+
+      } else {
+       emptyLines = 0;
+       not_done_reading = 1;
+      }
+
       // char *req_buf = calloc(MAX_BUF, sizeof(char *));
       // get_msg(fd_client, req_buf);
 
