@@ -12,5 +12,5 @@ nc - C localhost 8010
 
 GET /dir1/dir2/dir3/square.js HTTP/1.0
 
-### browswer
+### browser
 localhost:portnumber/filepath
