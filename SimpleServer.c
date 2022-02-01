@@ -441,11 +441,12 @@ int main(int argc, char **argv) {
          printf("wtf %d\n", emptyLines);
         }
        }
+       else {
+        emptyLines = 0;
+        not_done_reading = 1;
+       }
        memset(currentLine, 0, request_line_size);
 
-      } else {
-       emptyLines = 0;
-       not_done_reading = 1;
       }
 
       // char *req_buf = calloc(MAX_BUF, sizeof(char *));
