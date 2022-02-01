@@ -429,7 +429,7 @@ int main(int argc, char **argv) {
        // check if line has \r\n\r\n
        printf("\t---line = \"%s\" - empty lines = %d\n", currentLine, emptyLines);
        if (strstr(currentLine, "") != NULL) {
-        printf(" fml fml fml fml\n");
+        // printf(" something\n");
        }
 
        if (strstr(currentLine, "\r\n\r\n") != NULL) {
@@ -438,7 +438,7 @@ int main(int argc, char **argv) {
         emptyLines++;
         if (emptyLines == 1) {
          not_done_reading = 0;
-         printf("wtf %d\n", emptyLines);
+         printf("emptylines %d\n", emptyLines);
         }
        }
        else {
