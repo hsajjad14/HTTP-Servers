@@ -1,6 +1,9 @@
 # csc358-a1
 ## usage
 "nc -C host port" adds a crlf on every enter
+
+### run the server
+./SimpleServer_merged 8080 ./
   
 ### in local directory 
 nc -C localhost 8010
