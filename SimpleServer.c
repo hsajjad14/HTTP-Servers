@@ -1,6 +1,8 @@
 
 #include "HTTPServer.h"
 
+
+
 char webpage[] = "HTTP/1.0 200 OK\r\n"
                  "Content-Type: text/html; charset=UTF-8\r\n\r\n"
                  "<!DOCTYPE html>\r\n"
@@ -279,7 +281,7 @@ void makeServerResponse(struct file *clientFile, char *bufferToSendClient,
       struct tm time;
       if (strptime(request->if_modified_since, date_format, &time) != NULL || strptime(request->if_modified_since, "%A, %d-%b-%y %T GMT", &time) != NULL || strptime(request->if_modified_since, "%c", &time) != NULL)
       {
-        //difftime returns difference in seconds between two times. 
+        //difftime returns difference in seconds between two times.
         //    last modified file            if modified since time
         if (difftime(file_metadata.st_mtime, mktime(&time)) >= 0)
         {
@@ -301,8 +303,8 @@ void makeServerResponse(struct file *clientFile, char *bufferToSendClient,
     }
 
     //printf("%s\n", date_format);
-    char *curr_date[100];
-    char *header1[100];
+    char curr_date[100];
+    char header1[200]; // make line size 200 so curr_date can fit in it.
     time_t sec = time(NULL);
     strftime(curr_date, 100, date_format, localtime(&(sec)));
     snprintf(header1, sizeof(header1), "Date: %s \r\n", curr_date);
