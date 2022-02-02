@@ -130,8 +130,8 @@ int parseRequestInitial(char *initial, struct http_request *h) {
   printf("ver_ptr = \"%s\"\n", ver_ptr);
 
   strncpy(h->method, initial, 3);
-  strncpy(h->uri, resource_loc_ptr+1, ver_ptr - resource_loc_ptr - 2);
-  h->uri[ver_ptr - resource_loc_ptr - 2] = '\0';
+  strncpy(h->uri, resource_loc_ptr, ver_ptr - resource_loc_ptr - 1);
+  h->uri[ver_ptr - resource_loc_ptr - 1] = '\0';
   printf("huri a = \"%s\"\n",h->uri );
 
   char *endptr;
@@ -229,8 +229,8 @@ void makeServerResponse(struct file *clientFile, char *bufferToSendClient,
     }
   }
 
-  // filePtr = fopen(clientFile->filePath, "r");
-  filePtr = fopen(request->uri, "r");
+  filePtr = fopen(clientFile->filePath, "r");
+  // filePtr = fopen(request->uri, "r");
 
   // check if file exists:
   if (filePtr == NULL) { // actual condition
@@ -442,7 +442,7 @@ int main(int argc, char **argv) {
   }
   char *http_root_path = argv[2];
   // this is to move one / up so / => root directory
-  http_root_path = http_root_path+1;
+  // http_root_path = http_root_path+1;
 
   struct sockaddr_in server_addr, client_addr;
   socklen_t sin_len = sizeof(client_addr);
@@ -538,7 +538,7 @@ int main(int argc, char **argv) {
       clientFile->filePath = calloc(path_len, sizeof(char));
       strncpy(clientFile->filePath, http_root_path, strlen(http_root_path));
       strncpy(clientFile->filePath + strlen(http_root_path), request->uri, strlen(request->uri));
-      clientFile->filePath[strlen(request->uri)] = '\0';
+      clientFile->filePath[strlen(http_root_path) + strlen(request->uri) + 1] = '\0';
       printf("A file in clientFile = \"%s\"\n", clientFile->filePath);
 
       // char someFileName[] = "square.js";
