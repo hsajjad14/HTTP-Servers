@@ -234,7 +234,7 @@ void makeServerResponse(struct file *clientFile, char *bufferToSendClient,
   if (filePtr == NULL) { // actual condition
     // if (0) { // condition for testing because we haven't implemented file io
     // use 2048 as max buffer size for now
-    printf("do we go here?\n");
+    //printf("do we go here?\n");
     memset(bufferToSendClient, 0, MAX_BUF);
     char statusLine[] = "HTTP/1.0 404 Not Found\r\n";
     strncpy(bufferToSendClient, statusLine, strlen(statusLine));
@@ -257,7 +257,56 @@ void makeServerResponse(struct file *clientFile, char *bufferToSendClient,
     strncpy(bufferToSendClient, statusLine, strlen(statusLine));
 
     // headers
-    char header1[] = "Date: get date somehow\r\n";
+
+    /* ==================================== Handling Conditional Requests ==================================== */
+    // If-Modified-Since: <day-name>, <day> <month> <year> <hour>:<minute>:<second> GMT format
+    // need to create a format for this
+    // http://www.qnx.com/developers/docs/qnxcar2/index.jsp?topic=%2Fcom.qnx.doc.neutrino.lib_ref%2Ftopic%2Fs%2Fstrptime.html
+    char *date_format = "%a, %d %b %Y %T GMT";
+    // collect file meta data in order to find when the file was modified last
+    // from https://stackoverflow.com/questions/10446526/get-last-modified-time-of-file-in-linux
+    struct stat file_metadata;
+    stat(clientFile->filePath, &file_metadata);
+    //fstat(filePtr, &file_metadata);
+    //printf("File path: %s \n", clientFile->filePath);
+    //printf("Last modified time: %s", ctime(&file_metadata.st_mtime));
+    //printf("If modified since time %s \n", clientFile->date_modified_from_header_request);
+
+    // Now we that have the last modified date from the file and the if modified since date from the request header, we can compare the dates.
+    int works = 2;
+    if (request->if_modified_since != NULL)
+    {
+      struct tm time;
+      if (strptime(request->if_modified_since, date_format, &time) != NULL || strptime(request->if_modified_since, "%A, %d-%b-%y %T GMT", &time) != NULL || strptime(request->if_modified_since, "%c", &time) != NULL)
+      {
+        //difftime returns difference in seconds between two times. 
+        //    last modified file            if modified since time
+        if (difftime(file_metadata.st_mtime, mktime(&time)) >= 0)
+        {
+          // if we enter here, the file has been modified so we're good
+          works = 1;
+        }
+        else
+        {
+          works = 0;
+        }
+      }
+    }
+    if (works == 0)
+    {
+      // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
+      char header_error[] = "HTTP/1.0 304 Not Modified Since\r\n\r\n";
+      strncat(bufferToSendClient, header_error, strlen(header_error));
+      return;
+    }
+
+    //printf("%s\n", date_format);
+    char *curr_date[100];
+    char *header1[100];
+    time_t sec = time(NULL);
+    strftime(curr_date, 100, date_format, localtime(&(sec)));
+    snprintf(header1, sizeof(header1), "Date: %s \r\n", curr_date);
+    //printf("%s \n", header1);
     strncat(bufferToSendClient, header1, strlen(header1));
 
     // from
