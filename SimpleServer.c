@@ -176,6 +176,14 @@ int parseRequest(char *req, struct http_request *h) {
         header_body[i - colon_pointer_index - 2] = ptr[i];
       }
 
+      // header we are tracking for SimpleServer
+      // If-Modified-Since
+      if (strcmp("If-Modified-Since", header) == 0) {
+       strncpy(h->if_modified_since, header_body, strlen(header_body));
+       printf("\"%s\": \"%s\"\n", header,h->if_modified_since);
+      }
+
+
       // printf("colon at index = %ld, length of line = %ld\n", colon_pointer -
       // ptr, strlen(ptr)); printf("header is \"%s\"\n", header); printf("header
       // body is \"%s\"\n", header_body);
