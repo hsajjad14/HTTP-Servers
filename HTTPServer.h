@@ -16,7 +16,9 @@
 
 
 #define CRLF "\r\n"
+#define CRLFCRLF "\r\n\r\n"
 #define MAX_BUF 1000000
+#define TIMEOUT 10 //seconds for timeout
 // Status codes
 #define OK 200
 #define MOVED_PERMANENTLY 301
@@ -39,7 +41,7 @@ struct file {
 struct http_request {
 	char *method;
 	char *uri;
-	int version;
+	char *version;
 	// header values
 	//char *connection;
 	char *accept;

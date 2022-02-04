@@ -65,29 +65,44 @@ Fills <buf> with the contents received from the socket <client_fd>.
 Returns the number of bytes read into the buffer or -1 if the double CRLF
 was not received.
 */
-int get_msg(int client_fd, char *buf) {
-	int bytes_recvd, tot_recvd = 0;
-  	char *buf_ptr;
-  	int buf_size = strlen(buf);
-  	int crlf_flag = 0; // 0 = none of it, 1 = got "\r", 2 = got "\n"
+int get_msg(int fd_client, char *buf) {
 
-	while (((bytes_recvd = recv(client_fd, buf, 1, 0)) > 0) &&
-   		(tot_recvd < buf_size)) {
-    		if (*buf_ptr == CRLF[crlf_flag]) {
-      			crlf_flag++;
-      			if (crlf_flag == 3) {
-				// all of the "\r\n\r\n" was read into the buffer
-        			*(buf_ptr - 3) = '\0'; // null terminate buffer, truncating "\r\n\r\n"
-        			return strlen(buf);
-      			}
-    		} else {
-      			crlf_flag = 0; // reset the "progress" flag
-    		}
-    		buf_ptr++;
-    		tot_recvd++;
-  	}
+	int bytes_read = 0;	
+	int not_done_reading = 1;
+			
+	char *currentLine = calloc(request_line_size, sizeof(char));
+	int emptyLines = 0;
+	while (not_done_reading == 1 && bytes_read < MAX_BUF) {
+		bytes_read += read(fd_client, currentLine, request_line_size);
+		strncat(buf, currentLine, strlen(currentLine));
 
-	return -1;
+		// check if line has \r\n\r\n
+		printf("\t---line = \"%s\" - empty lines = %d\n", currentLine, emptyLines);
+		if (strstr(currentLine, "") != NULL) {
+			// printf(" something\n");
+		}
+
+		if (strstr(currentLine, CRLFCRLF) != NULL) {
+			// found the termination of the request message
+			not_done_reading = 0;
+		} else if (strcmp(CRLF, currentLine) == 0) {
+			emptyLines++;
+			if (emptyLines == 1) {
+				not_done_reading = 0;
+				printf("emptylines %d\n", emptyLines);
+			}
+		} else {
+			emptyLines = 0;
+			not_done_reading = 1;
+		}
+       	memset(currentLine, 0, request_line_size);
+    }
+
+	if (not_done_reading == 1) {
+		return -1;
+	} else {
+		return bytes_read;
+	}	
 }
 
 /*
@@ -119,6 +134,17 @@ int find_ext(char *fname) {
 }
 
 /*
+Returns 1 if and only if the HTTP method for <h> is GET (not case-sensitive).
+*/
+int is_get_req(struct http_request *h) {
+	if (strncmp(h->method, "GET", 3) != 0) {
+		return 0;
+	} else {
+		return 1;
+	}
+}
+
+/*
 Returns the file size of the file with the given <filename> path.
 Resources used:
 https://stackoverflow.com/questions/8236/how-do-you-determine-the-size-of-a-file-in-c
@@ -136,11 +162,12 @@ int parseRequestInitial(char *initial, struct http_request *h) {
   	char *ver_ptr = strchr(resource_loc_ptr, ' ') + 1;
 
   	strncpy(h->method, initial, 3); // assuming this server only handles GET requests, only
-					// the first 3 characters matter; this is for sanity test
-  	strncpy(h->uri, resource_loc_ptr+1, ver_ptr - resource_loc_ptr - 2);
-  	h->uri[ver_ptr - resource_loc_ptr - 2] = '\0';
-	char *endptr;
-  	h->version = strtol(ver_ptr + strlen("HTTP/1."), &endptr, 10);
+									// the first 3 characters matter; this is for sanity test
+  	strncpy(h->uri, resource_loc_ptr, ver_ptr - resource_loc_ptr - 1);
+  	//h->uri[ver_ptr - resource_loc_ptr - 2] = '\0';
+	//char *endptr;
+  	//h->version = strtol(ver_ptr + strlen("HTTP/1."), &endptr, 10);
+	strncpy(h->version, ver_ptr, 8); // assuming this will be of the form "HTTP/1.*"
 
 	return 0;
 }
@@ -151,7 +178,7 @@ with the parsed request data, header values.
 */
 int parseRequest(char *req, struct http_request *h) {
 	char *ptr = NULL;
-  	ptr = strtok(req, "\r\n");
+  	ptr = strtok(req, CRLF);
 
   	char *colon_pointer = NULL;
 
@@ -177,12 +204,12 @@ int parseRequest(char *req, struct http_request *h) {
         			header_body[i - colon_pointer_index - 2] = ptr[i];
       			}
 
-      // header we are tracking for SimpleServer
-      // If-Modified-Since
-      if (strcmp("If-Modified-Since", header) == 0) {
-       strncpy(h->if_modified_since, header_body, strlen(header_body));
-       printf("\"%s\": \"%s\"\n", header,h->if_modified_since);
-      }
+      			// header we are tracking for SimpleServer
+      			// If-Modified-Since
+				if (strcmp("If-Modified-Since", header) == 0) {
+					strncpy(h->if_modified_since, header_body, strlen(header_body));
+					printf("\"%s\": \"%s\"\n", header,h->if_modified_since);
+				}
 
 
       // printf("colon at index = %ld, length of line = %ld\n", colon_pointer -
@@ -196,10 +223,12 @@ int parseRequest(char *req, struct http_request *h) {
       			// first line - parse the initial line
       			parseRequestInitial(ptr, h);
     		}
+
     		printf("request line = \"%s\"\n\n", ptr);
     		ptr = strtok(NULL, "\r\n");
     		line_counter++;
   	}
+
   	return line_counter;
 }
 
@@ -459,52 +488,25 @@ int main(int argc, char **argv) {
 			// child processes returns 0
 			close(fd_server);
 
+			int *httpCode = (int *)malloc(sizeof(int));
+			*httpCode = 200; // default value
+
 			// read in the request from the client
 			memset(buf, 0, MAX_BUF);
-			int not_done_reading = 1;
-			//int request_line_size = 200;
-			
-			char *currentLine = (char*)malloc(sizeof(char) * request_line_size);
-			memset(currentLine, 0, request_line_size);
-			int emptyLines = 0;
-			while (not_done_reading == 1) {
-				read(fd_client, currentLine, request_line_size);
-				strncat(buf, currentLine, strlen(currentLine));
+			int req_bytes_read = get_msg(fd_client, buf);
 
-				// check if line has \r\n\r\n
-				printf("\t---line = \"%s\" - empty lines = %d\n", currentLine, emptyLines);
-				if (strstr(currentLine, "") != NULL) {
-					// printf(" something\n");
-				}
-
-				if (strstr(currentLine, "\r\n\r\n") != NULL) {
-					not_done_reading = 0;
-				} else if (strcmp(CRLF, currentLine) == 0) {
-					emptyLines++;
-					if (emptyLines == 1) {
-						not_done_reading = 0;
-						printf("emptylines %d\n", emptyLines);
-					}
-				} else {
-					emptyLines = 0;
-					not_done_reading = 1;
-				}
-       			memset(currentLine, 0, request_line_size);
-      		}
-
-			// char *req_buf = calloc(MAX_BUF, sizeof(char *));
-			// get_msg(fd_client, req_buf);
+			if (req_bytes_read< 0) {
+				*httpCode = 400;	// something went wrong with the request reading (tentative)
+			}	
 
       		printf("%s\n", buf);
 
 			struct file *clientFile = (struct file *)malloc(sizeof(struct file));
-			int *httpCode = (int *)malloc(sizeof(int)); // why is this a ptr?
-			*httpCode = 200;                            // default
 
 			struct http_request *request =
 				(struct http_request *)malloc(sizeof(struct http_request));
-			request->version = -1;
-			request->method = calloc(request_line_size, sizeof(char));
+			request->version = calloc(9, sizeof(char));
+			request->method = calloc(4, sizeof(char));
 			request->uri = calloc(request_line_size, sizeof(char));
 			request->accept = calloc(request_line_size, sizeof(char));
 			request->if_match = calloc(request_line_size, sizeof(char));
@@ -517,10 +519,17 @@ int main(int argc, char **argv) {
 			//TODO: remove
 			printf("method parsed out: %s\n", request->method);
 			printf("uri parsed out: %s\n", request->uri);
-			printf("http ver parsed out: %d\n", request->version);
+			printf("http ver parsed out: %s\n", request->version);
+			
+			// set error codes if request file type, method or versions are invalid
 			clientFile->fileType = find_ext(request->uri);
-			if (clientFile->fileType < 0) {
-				*httpCode = 400;
+			if (clientFile->fileType < 0 || is_get_req(request) == 0) {
+				*httpCode = 400;	// bad request
+			}			
+			// Technically this server follows the HTTP/1.0 protocol, but requests from browser
+			// may be an HTTP/1.1 request
+			if (strncmp(request->version, "HTTP/1.0", 8) != 0 && strncmp(request->version, "HTTP/1.1", 8) != 0) {
+				*httpCode = 505;	// HTTP version not supported
 			}
 
 			// get full path of requested file
@@ -546,21 +555,6 @@ int main(int argc, char **argv) {
       		free(st);
 
       		printf("err code B = %d\n", *httpCode);
-
-			// char someFileName[] = "simpleServer_webpage.html";
-			// char someFileName[] = "square.js";
-
-			// clientFile->fileName = malloc(sizeof(char)*strlen(someFileName));
-
-			// char someFilePath[] = "simpleServer_webpage.html";
-			// char someFilePath[] = "square.js";
-
-			// clientFile->filePath = malloc(sizeof(char)*(strlen(someFilePath)));
-			// clientFile->filePath = malloc(sizeof(char)*(strlen(request->uri)));
-			// strncpy(clientFile->filePath, request->uri, strlen(request->uri));
-			// clientFile->filePath[strlen(request->uri)] = '\0';
-
-			// strncat(clientFile->filePath, someFileName, strlen(someFileName));
 
 			// construct and send the HTTP response
       		printf("file in clientFile = \"%s\"\n", clientFile->filePath);
