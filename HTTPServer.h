@@ -10,6 +10,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <time.h>
@@ -43,8 +44,8 @@ struct http_request {
 	char *uri;
 	char *version;
 	// header values
-	//char *connection;
 	char *accept;
+	int keep_alive;	// 1 if true, 0 if false (i.e. Connection: close)
 	char *if_match;
 	char *if_none_match;
 	char *if_modified_since;
