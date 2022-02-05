@@ -279,8 +279,7 @@ void makeServerResponse(struct file *clientFile, char *bufferToSendClient,
   	} else { // file found
     	// read it
     	memset(bufferToSendClient, 0, MAX_BUF);
-    	char statusLine[] = "HTTP/1.0 200 OK\r\n";
-    	strncpy(bufferToSendClient, statusLine, strlen(statusLine));
+    	
 
     	// headers
 
@@ -325,7 +324,8 @@ void makeServerResponse(struct file *clientFile, char *bufferToSendClient,
       		strncat(bufferToSendClient, header_error, strlen(header_error));
       		return;
     	}
-
+		char statusLine[] = "HTTP/1.0 200 OK\r\n";
+    	strncpy(bufferToSendClient, statusLine, strlen(statusLine));
     	//printf("%s\n", date_format);
     	char curr_date[100];
     	char header1[200]; // make line size 200 so curr_date can fit in it.
