@@ -66,9 +66,9 @@ was not received.
 */
 int get_msg(int fd_client, char *buf) {
 
-	int bytes_read = 0;	
+	int bytes_read = 0;
 	int not_done_reading = 1;
-			
+
 	char *currentLine = calloc(request_line_size, sizeof(char));
 	int emptyLines = 0;
 	while (not_done_reading == 1 && bytes_read < MAX_BUF) {
@@ -101,7 +101,7 @@ int get_msg(int fd_client, char *buf) {
 		return -1;
 	} else {
 		return bytes_read;
-	}	
+	}
 }
 
 /*
@@ -202,7 +202,7 @@ int parseRequest(char *req, struct http_request *h) {
       			for (int i = colon_pointer_index + 2; i < strlen(ptr); i++) {
         			header_body[i - colon_pointer_index - 2] = ptr[i];
       			}
-      			
+
 				if (strcmp("If-Modified-Since", header) == 0) {
                     // Parse 'If-Modified-Since' header value
 					strncpy(h->if_modified_since, header_body, strlen(header_body));
@@ -226,7 +226,7 @@ int parseRequest(char *req, struct http_request *h) {
 
       			free(header);
       			free(header_body);
-				  
+
     		} else {
       			// first line - parse the initial line
       			parseRequestInitial(ptr, h);
@@ -251,7 +251,7 @@ void makeServerResponse(struct file *clientFile, char *bufferToSendClient,
 	if (*currentStatusCode != 200) {
 		// there is a prior error
     	memset(bufferToSendClient, 0, MAX_BUF);
-    
+
     	// on errors don't add any headers
     	if (*currentStatusCode == 301) {
       		char statusLine[] = "HTTP/1.0 301 Moved Permanently\r\n";
@@ -278,7 +278,7 @@ void makeServerResponse(struct file *clientFile, char *bufferToSendClient,
   	filePtr = fopen(clientFile->filePath, "r");
 
   	// check if file exists:
-  	if (filePtr == NULL) { 
+  	if (filePtr == NULL) {
     	memset(bufferToSendClient, 0, MAX_BUF);
     	char statusLine[] = "HTTP/1.0 404 Not Found\r\n";
     	strncpy(bufferToSendClient, statusLine, strlen(statusLine));
@@ -482,7 +482,7 @@ int main(int argc, char **argv) {
   	bindAndListen(port_num, server_addr);
 
     struct timeval *t_val = calloc(1, sizeof(struct timeval));
-    t_val->tv_sec = 10;
+    t_val->tv_sec = 5;
     t_val->tv_usec = 0;
 
   	while (1) {
@@ -492,18 +492,21 @@ int main(int argc, char **argv) {
       		perror("connection failed --\n");
       		continue;
     	}
-		
-		printf("got client connection ---\n");
+
+		    printf("got client connection ---\n");
 
     	if (!fork()) {
 
-			// child processes returns 0
-			close(fd_server);
+         			// child processes returns 0
+         			close(fd_server);
 
             // Use SO_RECVTIMEO flag to specify a timeout value for input from socket
-            // Sources: https://stackoverflow.com/questions/4181784/how-to-set-socket-timeout-in-c-when-making-multiple-connections	
-            if (setsockopt(fd_client, SOL_SOCKET, SO_RCVTIMEO, &t_val, sizeof(t_val)) == -1) {
-                perror("setsockopt");
+            // Sources: https://stackoverflow.com/questions/4181784/how-to-set-socket-timeout-in-c-when-making-multiple-connections
+            if (setsockopt(fd_client, SOL_SOCKET, SO_RCVTIMEO, (const char*)t_val, sizeof(struct timeval)) == -1) {
+                perror("setsockopt rcv timeout");
+            }
+            if (setsockopt(fd_client, SOL_SOCKET, SO_SNDTIMEO, (const char*)t_val, sizeof(struct timeval)) == -1) {
+                perror("setsockopt send timout");
             }
 
             int *httpCode = (int *)malloc(sizeof(int));
@@ -513,16 +516,16 @@ int main(int argc, char **argv) {
             // the last request was OK
             int bytes_read;
             while (*httpCode == 200 && ((bytes_read = get_msg(fd_client, buf)) > 0)) {
-                
+
                 *httpCode = 200; // default value
-            
+
                 // read in the request from the client
-                
+
                 //int req_bytes_read = get_msg(fd_client, buf);
 
                 if (bytes_read < 0) {
                     *httpCode = 400;	// something went wrong with the request reading (tentative)
-                }	
+                }
 
                 printf("%s\n", buf);
 
@@ -546,12 +549,12 @@ int main(int argc, char **argv) {
                 printf("method parsed out: %s\n", request->method);
                 printf("uri parsed out: %s\n", request->uri);
                 printf("http ver parsed out: %s\n", request->version);
-                
+
                 // set error codes if request file type, method or versions are invalid
                 clientFile->fileType = find_ext(request->uri);
                 if (clientFile->fileType < 0 || is_get_req(request) == 0) {
                     *httpCode = 400;	// bad request
-                }			
+                }
                 // Technically this server follows the HTTP/1.0 protocol, but requests from browser
                 // may be an HTTP/1.1 request
                 if (strncmp(request->version, "HTTP/1.0", 8) != 0 && strncmp(request->version, "HTTP/1.1", 8) != 0) {
@@ -568,7 +571,7 @@ int main(int argc, char **argv) {
                 clientFile->filePath[strlen(http_root_path) + strlen(request->uri) + 1] = '\0';
                 printf("A file in clientFile = \"%s\"\n", clientFile->filePath);
 
-        
+
                 printf("err code A = %d\n", *httpCode);
                 // clientFile->fileType = 2; // test file types
                 // clientFile->fileSize = 2000;
@@ -597,7 +600,7 @@ int main(int argc, char **argv) {
 
                 // reset the buffer
                 memset(buf, 0, MAX_BUF);
-                
+
             }
             close(fd_client);
       		exit(0);
