@@ -2,7 +2,6 @@
 #include "HTTPServer.h"
 
 
-
 char webpage[] = "HTTP/1.0 200 OK\r\n"
                  "Content-Type: text/html; charset=UTF-8\r\n\r\n"
                  "<!DOCTYPE html>\r\n"
@@ -203,12 +202,21 @@ int parseRequest(char *req, struct http_request *h) {
       			for (int i = colon_pointer_index + 2; i < strlen(ptr); i++) {
         			header_body[i - colon_pointer_index - 2] = ptr[i];
       			}
-
-      			// header we are tracking for SimpleServer
-      			// If-Modified-Since
+      			
 				if (strcmp("If-Modified-Since", header) == 0) {
+                    // Parse 'If-Modified-Since' header value
 					strncpy(h->if_modified_since, header_body, strlen(header_body));
 					printf("\"%s\": \"%s\"\n", header,h->if_modified_since);
+				}
+
+				if (strncmp("Connection", header, 10) == 0) {
+                    // Parse 'Connection' header value
+                    if (strncmp("keep-alive", header_body, 10) == 0) {
+                        h->keep_alive = 1;
+                    } else {
+                        h->keep_alive = 0;
+                    }
+					printf("\"%s\": \"%d\"\n", header,h->keep_alive);
 				}
 
 
@@ -453,7 +461,7 @@ int main(int argc, char **argv) {
 
 	// parse in command line arguments
   	if (argc != 3) {
-		fprintf(stderr, "Usage: ./simpleserver port_num http_root_path\n");
+		fprintf(stderr, "Usage: ./persistent port_num http_root_path\n");
 		exit(-1);
   	}
 
@@ -473,6 +481,10 @@ int main(int argc, char **argv) {
 
   	bindAndListen(port_num, server_addr);
 
+    struct timeval *t_val = calloc(1, sizeof(struct timeval));
+    t_val->tv_sec = 10;
+    t_val->tv_usec = 0;
+
   	while (1) {
     	fd_client = accept(fd_server, (struct sockaddr *)&client_addr, &sin_len);
 
@@ -488,85 +500,106 @@ int main(int argc, char **argv) {
 			// child processes returns 0
 			close(fd_server);
 
-			int *httpCode = (int *)malloc(sizeof(int));
-			*httpCode = 200; // default value
+            // Use SO_RECVTIMEO flag to specify a timeout value for input from socket
+            // Sources: https://stackoverflow.com/questions/4181784/how-to-set-socket-timeout-in-c-when-making-multiple-connections	
+            if (setsockopt(fd_client, SOL_SOCKET, SO_RCVTIMEO, &t_val, sizeof(t_val)) == -1) {
+                perror("setsockopt");
+            }
 
-			// read in the request from the client
-			memset(buf, 0, MAX_BUF);
-			int req_bytes_read = get_msg(fd_client, buf);
+            int *httpCode = (int *)malloc(sizeof(int));
+            *httpCode = 200; // default value
 
-			if (req_bytes_read< 0) {
-				*httpCode = 400;	// something went wrong with the request reading (tentative)
-			}	
+            // Keep looping as long as the client has something to send and
+            // the last request was OK
+            int bytes_read;
+            while (*httpCode == 200 && ((bytes_read = get_msg(fd_client, buf)) > 0)) {
+                
+                *httpCode = 200; // default value
+            
+                // read in the request from the client
+                
+                //int req_bytes_read = get_msg(fd_client, buf);
 
-      		printf("%s\n", buf);
+                if (bytes_read < 0) {
+                    *httpCode = 400;	// something went wrong with the request reading (tentative)
+                }	
 
-			struct file *clientFile = (struct file *)malloc(sizeof(struct file));
+                printf("%s\n", buf);
 
-			struct http_request *request =
-				(struct http_request *)malloc(sizeof(struct http_request));
-			request->version = calloc(9, sizeof(char));
-			request->method = calloc(4, sizeof(char));
-			request->uri = calloc(request_line_size, sizeof(char));
-			request->accept = calloc(request_line_size, sizeof(char));
-			request->keep_alive = 0; // assume a closed connection for HTTP/1.0 SimpleServer
-			request->if_match = calloc(request_line_size, sizeof(char));
-			request->if_none_match = calloc(request_line_size, sizeof(char));
-			request->if_modified_since = calloc(request_line_size, sizeof(char));
-			request->if_unmodified_since = calloc(request_line_size, sizeof(char));
+                struct file *clientFile = (struct file *)malloc(sizeof(struct file));
 
-			// parse the client request
-			parseRequest(buf, request);
-			//TODO: remove
-			printf("method parsed out: %s\n", request->method);
-			printf("uri parsed out: %s\n", request->uri);
-			printf("http ver parsed out: %s\n", request->version);
-			
-			// set error codes if request file type, method or versions are invalid
-			clientFile->fileType = find_ext(request->uri);
-			if (clientFile->fileType < 0 || is_get_req(request) == 0) {
-				*httpCode = 400;	// bad request
-			}			
-			// Technically this server follows the HTTP/1.0 protocol, but requests from browser
-			// may be an HTTP/1.1 request
-			if (strncmp(request->version, "HTTP/1.0", 8) != 0 && strncmp(request->version, "HTTP/1.1", 8) != 0) {
-				*httpCode = 505;	// HTTP version not supported
-			}
+                struct http_request *request =
+                    (struct http_request *)malloc(sizeof(struct http_request));
+                request->version = calloc(9, sizeof(char));
+                request->method = calloc(4, sizeof(char));
+                request->uri = calloc(request_line_size, sizeof(char));
+                request->keep_alive = 1; // default for HTTP/1.1
+                request->accept = calloc(request_line_size, sizeof(char));
+                request->if_match = calloc(request_line_size, sizeof(char));
+                request->if_none_match = calloc(request_line_size, sizeof(char));
+                request->if_modified_since = calloc(request_line_size, sizeof(char));
+                request->if_unmodified_since = calloc(request_line_size, sizeof(char));
 
-			// get full path of requested file
-			clientFile->fileName = malloc(sizeof(char) * strlen(request->uri));
-			strncpy(clientFile->fileName, request->uri, strlen(request->uri));
-			int path_len = strlen(http_root_path) + strlen(request->uri) + 1;
-			clientFile->filePath = calloc(path_len, sizeof(char));
-			strncpy(clientFile->filePath, http_root_path, strlen(http_root_path));
-			strncpy(clientFile->filePath + strlen(http_root_path), request->uri, strlen(request->uri));
-			clientFile->filePath[strlen(http_root_path) + strlen(request->uri) + 1] = '\0';
-			printf("A file in clientFile = \"%s\"\n", clientFile->filePath);
+                // parse the client request
+                parseRequest(buf, request);
+                //TODO: remove
+                printf("method parsed out: %s\n", request->method);
+                printf("uri parsed out: %s\n", request->uri);
+                printf("http ver parsed out: %s\n", request->version);
+                
+                // set error codes if request file type, method or versions are invalid
+                clientFile->fileType = find_ext(request->uri);
+                if (clientFile->fileType < 0 || is_get_req(request) == 0) {
+                    *httpCode = 400;	// bad request
+                }			
+                // Technically this server follows the HTTP/1.0 protocol, but requests from browser
+                // may be an HTTP/1.1 request
+                if (strncmp(request->version, "HTTP/1.0", 8) != 0 && strncmp(request->version, "HTTP/1.1", 8) != 0) {
+                    *httpCode = 505;	// HTTP version not supported
+                }
 
-     
-			printf("err code A = %d\n", *httpCode);
-			// clientFile->fileType = 2; // test file types
-			// clientFile->fileSize = 2000;
+                // get full path of requested file
+                clientFile->fileName = malloc(sizeof(char) * strlen(request->uri));
+                strncpy(clientFile->fileName, request->uri, strlen(request->uri));
+                int path_len = strlen(http_root_path) + strlen(request->uri) + 1;
+                clientFile->filePath = calloc(path_len, sizeof(char));
+                strncpy(clientFile->filePath, http_root_path, strlen(http_root_path));
+                strncpy(clientFile->filePath + strlen(http_root_path), request->uri, strlen(request->uri));
+                clientFile->filePath[strlen(http_root_path) + strlen(request->uri) + 1] = '\0';
+                printf("A file in clientFile = \"%s\"\n", clientFile->filePath);
 
-      		struct stat *st = (struct stat *)malloc(sizeof(struct stat));
-      		clientFile->fileSize = fsize(clientFile->filePath, st);
-      		if (clientFile->fileSize == -1) {
-        		*httpCode = 400;
-      		}
-      		free(st);
+        
+                printf("err code A = %d\n", *httpCode);
+                // clientFile->fileType = 2; // test file types
+                // clientFile->fileSize = 2000;
 
-      		printf("err code B = %d\n", *httpCode);
+                struct stat *st = (struct stat *)malloc(sizeof(struct stat));
+                clientFile->fileSize = fsize(clientFile->filePath, st);
+                if (clientFile->fileSize == -1) {
+                    *httpCode = 400;
+                }
+                free(st);
 
-			// construct and send the HTTP response
-      		printf("file in clientFile = \"%s\"\n", clientFile->filePath);
-      		char *bufferToSendClient = (char *)malloc(sizeof(char) * MAX_BUF); // max http request message len
-      		makeServerResponse(clientFile, bufferToSendClient, httpCode, request);
-      		printf("buff to send to client = ---------------------\n%s\n", bufferToSendClient);
+                printf("err code B = %d\n", *httpCode);
 
-      		write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
-      		close(fd_client);
-      		printf("closing client connection--\n");
+                // construct and send the HTTP response
+                printf("file in clientFile = \"%s\"\n", clientFile->filePath);
+                char *bufferToSendClient = (char *)malloc(sizeof(char) * MAX_BUF); // max http request message len
+                makeServerResponse(clientFile, bufferToSendClient, httpCode, request);
+                printf("buff to send to client = ---------------------\n%s\n", bufferToSendClient);
 
+                write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
+
+                if (request->keep_alive == 0) {
+                    // "timeout" because the client does not expect persistent connection
+                    *httpCode = 408; //408 Request Timeout
+                }
+
+                // reset the buffer
+                memset(buf, 0, MAX_BUF);
+                
+            }
+            close(fd_client);
       		exit(0);
     	}
 
