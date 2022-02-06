@@ -242,25 +242,25 @@ void makeServerResponse(struct file * clientFile, char * bufferToSendClient,
         // on errors don't add any headers
         if ( * currentStatusCode == 301) {
             char statusLine[] = "HTTP/1.0 301 Moved Permanently\r\n";
-			write(fd_client, statusLine, strlen(statusLine));
+            write(fd_client, statusLine, strlen(statusLine));
             //strncpy(bufferToSendClient, statusLine, strlen(statusLine));
             return;
 
         } else if ( * currentStatusCode == 400) {
             char statusLine[] = "HTTP/1.0 400 Bad Request\r\n";
-			write(fd_client, statusLine, strlen(statusLine));
+            write(fd_client, statusLine, strlen(statusLine));
             //strncpy(bufferToSendClient, statusLine, strlen(statusLine));
             return;
 
         } else if ( * currentStatusCode == 505) {
             char statusLine[] = "HTTP/1.0 505 HTTP Version Not Supported\r\n";
-			write(fd_client, statusLine, strlen(statusLine));
+            write(fd_client, statusLine, strlen(statusLine));
             //strncpy(bufferToSendClient, statusLine, strlen(statusLine));
             return;
 
         } else {
             char statusLine[] = "HTTP/1.0 400 Bad Request\r\n";
-			write(fd_client, statusLine, strlen(statusLine));
+            write(fd_client, statusLine, strlen(statusLine));
             //strncpy(bufferToSendClient, statusLine, strlen(statusLine));
             return;
         }
@@ -272,7 +272,7 @@ void makeServerResponse(struct file * clientFile, char * bufferToSendClient,
     if (filePtr == NULL) {
         memset(bufferToSendClient, 0, MAX_BUF);
         char statusLine[] = "HTTP/1.0 404 Not Found\r\n";
-		write(fd_client, statusLine, strlen(statusLine));
+        write(fd_client, statusLine, strlen(statusLine));
         //strncpy(bufferToSendClient, statusLine, strlen(statusLine));
         * currentStatusCode = 404;
         return;
@@ -314,13 +314,13 @@ void makeServerResponse(struct file * clientFile, char * bufferToSendClient,
         if (works == 0) {
             // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
             char header_error[] = "HTTP/1.0 304 Not Modified Since\r\n\r\n";
-			write(fd_client, header_error, strlen(header_error));
+            write(fd_client, header_error, strlen(header_error));
             //strncat(bufferToSendClient, header_error, strlen(header_error));
             return;
         }
         char statusLine[] = "HTTP/1.0 200 OK\r\n";
         //strncpy(bufferToSendClient, statusLine, strlen(statusLine));
-		write(fd_client, statusLine, strlen(statusLine));
+        write(fd_client, statusLine, strlen(statusLine));
         //printf("%s\n", date_format);
         char curr_date[100];
         char header1[200]; // make line size 200 so curr_date can fit in it.
@@ -329,7 +329,7 @@ void makeServerResponse(struct file * clientFile, char * bufferToSendClient,
         snprintf(header1, sizeof(header1), "Date: %s \r\n", curr_date);
         //printf("%s \n", header1);
         //strncat(bufferToSendClient, header1, strlen(header1));
-		write(fd_client, header1, strlen(header1));
+        write(fd_client, header1, strlen(header1));
 
         // from
         // https://stackoverflow.com/questions/8257714/how-to-convert-an-int-to-string-in-c
@@ -338,20 +338,20 @@ void makeServerResponse(struct file * clientFile, char * bufferToSendClient,
         sprintf(sizeToStr, "%d", clientFile -> fileSize);
         char header2_p1[] = "Content-Length: ";
         //strncat(bufferToSendClient, header2_p1, strlen(header2_p1));
-		write(fd_client, header2_p1, strlen(header2_p1));
+        write(fd_client, header2_p1, strlen(header2_p1));
         // -1 to not write the null terminator as sprintf null terminates
         //strncat(bufferToSendClient, sizeToStr, size - 1);
-		write(fd_client, sizeToStr, size - 1);
+        write(fd_client, sizeToStr, size - 1);
 
         char carriageReturn[] = "\r\n";
-		write(fd_client, carriageReturn, strlen(carriageReturn));
+        write(fd_client, carriageReturn, strlen(carriageReturn));
         //strncat(bufferToSendClient, carriageReturn, strlen(carriageReturn));
 
         if (clientFile -> fileType == 0) {
             // html file
             char header3[] = "Content-Type: text/html; charset=UTF-8\r\n\r\n";
             //strncat(bufferToSendClient, header3, strlen(header3));
-			write(fd_client, header3, strlen(header3));
+            write(fd_client, header3, strlen(header3));
 
             // copy file body
             // strncat(bufferToSendClient, tempHtmlFile, strlen(tempHtmlFile));
@@ -361,7 +361,7 @@ void makeServerResponse(struct file * clientFile, char * bufferToSendClient,
                 char cToStr[1];
                 cToStr[0] = c;
                 //strncat(bufferToSendClient, cToStr, 1);
-				write(fd_client, cToStr, 1);
+                write(fd_client, cToStr, 1);
             }
 
         } else if (clientFile -> fileType == 1) {
@@ -371,7 +371,7 @@ void makeServerResponse(struct file * clientFile, char * bufferToSendClient,
             // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
             char header3[] = "Content-Type: text/css; charset=UTF-8\r\n\r\n";
             //strncat(bufferToSendClient, header3, strlen(header3));
-			write(fd_client, header3, strlen(header3));
+            write(fd_client, header3, strlen(header3));
 
             // copy file body
             // strncat(bufferToSendClient, tempHtmlFile, strlen(tempHtmlFile));
@@ -382,7 +382,7 @@ void makeServerResponse(struct file * clientFile, char * bufferToSendClient,
                 char cToStr[1];
                 cToStr[0] = c;
                 //strncat(bufferToSendClient, cToStr, 1);
-				write(fd_client, cToStr, 1);
+                write(fd_client, cToStr, 1);
             }
 
         } else if (clientFile -> fileType == 2) {
@@ -392,7 +392,7 @@ void makeServerResponse(struct file * clientFile, char * bufferToSendClient,
             // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
             char header3[] = "Content-Type: text/javascript; charset=UTF-8\r\n\r\n";
             //strncat(bufferToSendClient, header3, strlen(header3));
-			write(fd_client, header3, strlen(header3));
+            write(fd_client, header3, strlen(header3));
 
             // copy file body
             // strncat(bufferToSendClient, tempHtmlFile, strlen(tempHtmlFile));
@@ -403,7 +403,7 @@ void makeServerResponse(struct file * clientFile, char * bufferToSendClient,
                 char cToStr[1];
                 cToStr[0] = c;
                 //strncat(bufferToSendClient, cToStr, 1);
-				write(fd_client, cToStr, 1);
+                write(fd_client, cToStr, 1);
             }
 
         } else if (clientFile -> fileType == 3) {
@@ -412,7 +412,7 @@ void makeServerResponse(struct file * clientFile, char * bufferToSendClient,
             // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
             char header3[] = "Content-Type: text/plain; charset=UTF-8\r\n\r\n";
             //strncat(bufferToSendClient, header3, strlen(header3));
-			write(fd_client, header3, strlen(header3));
+            write(fd_client, header3, strlen(header3));
             // copy file body
             // strncat(bufferToSendClient, tempHtmlFile, strlen(tempHtmlFile));
 
@@ -422,7 +422,7 @@ void makeServerResponse(struct file * clientFile, char * bufferToSendClient,
                 char cToStr[1];
                 cToStr[0] = c;
                 //strncat(bufferToSendClient, cToStr, 1);
-				write(fd_client, cToStr, 1);
+                write(fd_client, cToStr, 1);
             }
         } else if (clientFile -> fileType == 4) {
             // jpg file
@@ -431,7 +431,7 @@ void makeServerResponse(struct file * clientFile, char * bufferToSendClient,
             // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
             char header3[] = "Content-Type: image/jpeg\r\n\r\n";
             //strncat(bufferToSendClient, header3, strlen(header3));
-			write(fd_client, header3, strlen(header3));
+            write(fd_client, header3, strlen(header3));
 
             printf("in jpg section\n");
 
@@ -444,7 +444,7 @@ void makeServerResponse(struct file * clientFile, char * bufferToSendClient,
                 char cToStr[1];
                 cToStr[0] = c;
                 //strncat(bufferToSendClient, cToStr, 1);
-				write(fd_client, cToStr, 1);
+                write(fd_client, cToStr, 1);
             }
 
         } else {
@@ -453,7 +453,7 @@ void makeServerResponse(struct file * clientFile, char * bufferToSendClient,
             char errorStatusLine[] = "HTTP/1.0 400 Bad Request\r\n";
             //strncpy(bufferToSendClient, errorStatusLine, strlen(errorStatusLine));
             write(fd_client, errorStatusLine, strlen(errorStatusLine));
-			* currentStatusCode = 400;
+            * currentStatusCode = 400;
         }
     }
 }
@@ -539,8 +539,8 @@ int main(int argc, char ** argv) {
             // Technically this server follows the HTTP/1.0 protocol, but requests from browser
             // may be an HTTP/1.1 request
             if (strncmp(request -> version, "HTTP/1.0", 8) != 0 && strncmp(request -> version, "HTTP/1.1", 8) != 0) {
-				//printf("Got here: %d %d\n", strncmp(request -> version, "HTTP/1.0", 8), strncmp(request -> version, "HTTP/1.1", 8));
-				* httpCode = 505; // HTTP version not supported
+                //printf("Got here: %d %d\n", strncmp(request -> version, "HTTP/1.0", 8), strncmp(request -> version, "HTTP/1.1", 8));
+                * httpCode = 505; // HTTP version not supported
             }
 
             // get full path of requested file
