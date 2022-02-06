@@ -19,7 +19,7 @@
 #define CRLF "\r\n"
 #define CRLFCRLF "\r\n\r\n"
 #define MAX_BUF 1000000
-#define TIMEOUT 10 //seconds for timeout
+#define TIMEOUT 5 //seconds for timeout
 // Status codes
 #define OK 200
 #define MOVED_PERMANENTLY 301
