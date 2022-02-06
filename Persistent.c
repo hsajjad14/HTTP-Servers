@@ -75,19 +75,25 @@ int get_msg(int fd_client, char * buf) {
 
         // check if line has \r\n\r\n
         printf("\t---line = \"%s\" - empty lines = %d\n", currentLine, emptyLines);
-        if (strstr(currentLine, "") != NULL) {
+        if (strcmp(currentLine, "") == 0) {
             printf("empty line\n");
+            // if (emptyLines == 1) {
             not_done_reading = 0;
+            // }
+            // emptyLines++;
         } else if (strstr(currentLine, CRLFCRLF) != NULL) {
             // found the termination of the request message
+            printf("empty crlf crlf line\n");
             not_done_reading = 0;
         } else if (strcmp(CRLF, currentLine) == 0) {
+            printf(" empty crlf line\n");
             emptyLines++;
             if (emptyLines == 1) {
                 not_done_reading = 0;
                 printf("emptylines %d\n", emptyLines);
             }
         } else {
+            printf("not empty line\n");
             emptyLines = 0;
             not_done_reading = 1;
         }
