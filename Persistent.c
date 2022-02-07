@@ -10,7 +10,7 @@ char webpage[] = "HTTP/1.0 200 OK\r\n"
 "</center></body></html>\r\n";
 
 static int fd_server;
-static int request_line_size = 200;
+// static int request_line_size = 200;
 
 // ------------------------------ HELPER FUNCTIONS  --------------------------------
 
@@ -77,11 +77,11 @@ int get_msg(int fd_client, char * buf) {
     int bytes_read = 0;
     int not_done_reading = 1;
 
-    char * currentLine = calloc(request_line_size, sizeof(char));
+    char * currentLine = calloc(LINE_SIZE, sizeof(char));
     int emptyLines = 0;
     while (not_done_reading == 1 && bytes_read < MAX_BUF) {
         printf("not done reading = %d\n", not_done_reading);
-        bytes_read += read(fd_client, currentLine, request_line_size);
+        bytes_read += read(fd_client, currentLine, LINE_SIZE);
         strncat(buf, currentLine, strlen(currentLine));
 
         // check if line has \r\n\r\n
@@ -112,7 +112,7 @@ int get_msg(int fd_client, char * buf) {
             emptyLines = 0;
             not_done_reading = 1;
         }
-        memset(currentLine, 0, request_line_size);
+        memset(currentLine, 0, LINE_SIZE);
     }
 
     if (not_done_reading == 1) {
@@ -229,9 +229,10 @@ int parseRequest(char * req, struct http_request * h) {
 
             if (strncmp("Connection", header, 10) == 0) {
                 // Parse 'Connection' header value
-                if (strncmp("keep-alive", header_body, 10) == 0) {
+                if (strncmp("keep-alive", header_body, 10) == 0 || strncmp("Keep-Alive", header_body, 10) == 0) {
                     h -> keep_alive = 1;
                 } else {
+                    // body is close
                     h -> keep_alive = 0;
                 }
                 printf("\"%s\": \"%d\"\n", header, h -> keep_alive);
@@ -346,10 +347,10 @@ void makeServerResponse(struct file * clientFile, char * bufferToSendClient,
         }
 
         //printf("%s\n", date_format);
-        char curr_date[100];
-        char header1[200]; // make line size 200 so curr_date can fit in it.
+        char curr_date[LINE_SIZE/2];
+        char header1[LINE_SIZE]; // make line size 200 so curr_date can fit in it.
         time_t sec = time(NULL);
-        strftime(curr_date, 100, date_format, localtime( & (sec)));
+        strftime(curr_date, LINE_SIZE/2, date_format, localtime( & (sec)));
         snprintf(header1, sizeof(header1), "Date: %s \r\n", curr_date);
         //printf("%s \n", header1);
         strncat(bufferToSendClient, header1, strlen(header1));
@@ -366,6 +367,27 @@ void makeServerResponse(struct file * clientFile, char * bufferToSendClient,
 
         char carriageReturn[] = "\r\n";
         strncat(bufferToSendClient, carriageReturn, strlen(carriageReturn));
+
+
+        // adding keep_alive and connection header
+        // connection header
+        char connectionHeader_p1[] = "Connection: ";
+        strncat(bufferToSendClient, connectionHeader_p1, strlen(connectionHeader_p1));
+        if (request->keep_alive == 1) {
+           char connectionHeader_p2[] = "Keep-Alive";
+           strncat(bufferToSendClient, connectionHeader_p2, strlen(connectionHeader_p2));
+        } else {
+           char connectionHeader_p2[] = "close";
+           strncat(bufferToSendClient, connectionHeader_p2, strlen(connectionHeader_p2));
+        }
+        strncat(bufferToSendClient, carriageReturn, strlen(carriageReturn));
+
+        // keep-alive header
+        if (request->keep_alive == 1) {
+         char keepAliveHeader[] = "Keep-Alive: timeout=5, max=100\r\n";
+         strncat(bufferToSendClient, keepAliveHeader, strlen(keepAliveHeader));
+        }
+
 
         if (clientFile -> fileType == 0) {
             // html file
@@ -527,7 +549,9 @@ int main(int argc, char ** argv) {
             // Keep looping as long as the client has something to send and
             // the last request was OK
             int bytes_read;
-            while ( * httpCode == 200 && ((bytes_read = get_msg(fd_client, buf)) > 0)) {
+            int keep_alive = 1;
+            int requests = 0;
+            while (keep_alive == 1 && *httpCode == 200 && (bytes_read = get_msg(fd_client, buf)) > 0 && requests < MAX_REQUESTS) {
                 printf("\t\tWhere are we C\n");
                 * httpCode = 200; // default value
 
@@ -547,16 +571,19 @@ int main(int argc, char ** argv) {
                     (struct http_request * ) malloc(sizeof(struct http_request));
                 request -> version = calloc(9, sizeof(char));
                 request -> method = calloc(4, sizeof(char));
-                request -> uri = calloc(request_line_size, sizeof(char));
+                request -> uri = calloc(LINE_SIZE, sizeof(char));
                 request -> keep_alive = 1; // default for HTTP/1.1
-                request -> accept = calloc(request_line_size, sizeof(char));
-                request -> if_match = calloc(request_line_size, sizeof(char));
-                request -> if_none_match = calloc(request_line_size, sizeof(char));
-                request -> if_modified_since = calloc(request_line_size, sizeof(char));
-                request -> if_unmodified_since = calloc(request_line_size, sizeof(char));
+                request -> accept = calloc(LINE_SIZE, sizeof(char));
+                request -> if_match = calloc(LINE_SIZE, sizeof(char));
+                request -> if_none_match = calloc(LINE_SIZE, sizeof(char));
+                request -> if_modified_since = calloc(LINE_SIZE, sizeof(char));
+                request -> if_unmodified_since = calloc(LINE_SIZE, sizeof(char));
 
                 // parse the client request
                 parseRequest(buf, request);
+                // check if connection closed from clients end
+                keep_alive = request->keep_alive;
+
                 //TODO: remove
                 printf("method parsed out: %s\n", request -> method);
                 printf("uri parsed out: %s\n", request -> uri);
@@ -611,6 +638,8 @@ int main(int argc, char ** argv) {
 
                 // reset the buffer
                 memset(buf, 0, MAX_BUF);
+
+                requests++;
 
             }
 

@@ -66,10 +66,10 @@ int get_msg(int fd_client, char * buf) {
     int bytes_read = 0;
     int not_done_reading = 1;
 
-    char * currentLine = calloc(request_line_size, sizeof(char));
+    char * currentLine = calloc(LINE_SIZE, sizeof(char));
     int emptyLines = 0;
     while (not_done_reading == 1 && bytes_read < MAX_BUF) {
-        bytes_read += read(fd_client, currentLine, request_line_size);
+        bytes_read += read(fd_client, currentLine, LINE_SIZE);
         strncat(buf, currentLine, strlen(currentLine));
 
         // check if line has \r\n\r\n
@@ -91,7 +91,7 @@ int get_msg(int fd_client, char * buf) {
             emptyLines = 0;
             not_done_reading = 1;
         }
-        memset(currentLine, 0, request_line_size);
+        memset(currentLine, 0, LINE_SIZE);
     }
 
     if (not_done_reading == 1) {
@@ -322,10 +322,10 @@ void makeServerResponse(struct file * clientFile, char * bufferToSendClient,
         //strncpy(bufferToSendClient, statusLine, strlen(statusLine));
         write(fd_client, statusLine, strlen(statusLine));
         //printf("%s\n", date_format);
-        char curr_date[100];
-        char header1[200]; // make line size 200 so curr_date can fit in it.
+        char curr_date[LINE_SIZE/2];
+        char header1[LINE_SIZE]; // make line size 200 so curr_date can fit in it.
         time_t sec = time(NULL);
-        strftime(curr_date, 100, date_format, localtime( & (sec)));
+        strftime(curr_date, LINE_SIZE/2, date_format, localtime( & (sec)));
         snprintf(header1, sizeof(header1), "Date: %s \r\n", curr_date);
         //printf("%s \n", header1);
         //strncat(bufferToSendClient, header1, strlen(header1));
@@ -516,13 +516,13 @@ int main(int argc, char ** argv) {
                 (struct http_request * ) malloc(sizeof(struct http_request));
             request -> version = calloc(9, sizeof(char));
             request -> method = calloc(4, sizeof(char));
-            request -> uri = calloc(request_line_size, sizeof(char));
-            request -> accept = calloc(request_line_size, sizeof(char));
+            request -> uri = calloc(LINE_SIZE, sizeof(char));
+            request -> accept = calloc(LINE_SIZE, sizeof(char));
             request -> keep_alive = 0; // assume a closed connection for HTTP/1.0 SimpleServer
-            request -> if_match = calloc(request_line_size, sizeof(char));
-            request -> if_none_match = calloc(request_line_size, sizeof(char));
-            request -> if_modified_since = calloc(request_line_size, sizeof(char));
-            request -> if_unmodified_since = calloc(request_line_size, sizeof(char));
+            request -> if_match = calloc(LINE_SIZE, sizeof(char));
+            request -> if_none_match = calloc(LINE_SIZE, sizeof(char));
+            request -> if_modified_since = calloc(LINE_SIZE, sizeof(char));
+            request -> if_unmodified_since = calloc(LINE_SIZE, sizeof(char));
 
             // parse the client request
             parseRequest(buf, request);
