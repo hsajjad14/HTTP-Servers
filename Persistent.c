@@ -56,12 +56,23 @@ void bindAndListen(int port, struct sockaddr_in serv_addr) {
 
 }
 
+// https://stackoverflow.com/questions/1726302/remove-spaces-from-a-string-in-c
+// void remove_spaces(char* s) {
+//     char* d = s;
+//     do {
+//         while (*d == ' ' || *d == '\n' || *d == '\r') {
+//             ++d;
+//         }
+//     } while (*s++ = *d++);
+// }
+
 /*
 Fills <buf> with the contents received from the socket <client_fd>.
 Returns the number of bytes read into the buffer or -1 if the double CRLF
 was not received.
 */
 int get_msg(int fd_client, char * buf) {
+    printf("\n\n---------------in get_msg\n");
 
     int bytes_read = 0;
     int not_done_reading = 1;
@@ -87,11 +98,15 @@ int get_msg(int fd_client, char * buf) {
             not_done_reading = 0;
         } else if (strcmp(CRLF, currentLine) == 0) {
             printf(" empty crlf line\n");
-            emptyLines++;
             if (emptyLines == 1) {
                 not_done_reading = 0;
                 printf("emptylines %d\n", emptyLines);
             }
+            emptyLines++;
+
+        } else if (strcmp("\n", currentLine) == 0) {
+            printf("empty new line\n");
+            not_done_reading = 0;
         } else {
             printf("not empty line\n");
             emptyLines = 0;
@@ -478,7 +493,7 @@ int main(int argc, char ** argv) {
     bindAndListen(port_num, server_addr);
 
     struct timeval * t_val = calloc(1, sizeof(struct timeval));
-    t_val -> tv_sec = 5;
+    t_val -> tv_sec = TIMEOUT;
     t_val -> tv_usec = 0;
 
     while (1) {

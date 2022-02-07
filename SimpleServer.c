@@ -69,31 +69,25 @@ int get_msg(int fd_client, char * buf) {
     char * currentLine = calloc(request_line_size, sizeof(char));
     int emptyLines = 0;
     while (not_done_reading == 1 && bytes_read < MAX_BUF) {
-        printf("not done reading = %d\n", not_done_reading);
         bytes_read += read(fd_client, currentLine, request_line_size);
         strncat(buf, currentLine, strlen(currentLine));
 
         // check if line has \r\n\r\n
         printf("\t---line = \"%s\" - empty lines = %d\n", currentLine, emptyLines);
-        if (strcmp(currentLine, "") == 0) {
-            printf("empty line\n");
-            // if (emptyLines == 1) {
-            not_done_reading = 0;
-            // }
-            // emptyLines++;
-        } else if (strstr(currentLine, CRLFCRLF) != NULL) {
+        if (strstr(currentLine, "") != NULL) {
+            // printf(" something\n");
+        }
+
+        if (strstr(currentLine, CRLFCRLF) != NULL) {
             // found the termination of the request message
-            printf("empty crlf crlf line\n");
             not_done_reading = 0;
         } else if (strcmp(CRLF, currentLine) == 0) {
-            printf(" empty crlf line\n");
             emptyLines++;
             if (emptyLines == 1) {
                 not_done_reading = 0;
                 printf("emptylines %d\n", emptyLines);
             }
         } else {
-            printf("not empty line\n");
             emptyLines = 0;
             not_done_reading = 1;
         }
