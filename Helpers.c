@@ -1,4 +1,6 @@
 #define _XOPEN_SOURCE
+#define _GNU_SOURCE
+
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <math.h>
@@ -372,31 +374,160 @@ void makeServerResponse(struct file * clientFile,
         struct stat file_metadata;
         stat(clientFile -> filePath, & file_metadata);
 
-        // Now we that have the last modified date from the file and the if modified since date from the request header, we can compare the dates.
-        int works = 2;
-        if (request -> if_modified_since != NULL) {
-            struct tm time;
-            if (strptime(request -> if_modified_since, date_format, & time) != NULL || strptime(request -> if_modified_since, "%A, %d-%b-%y %T GMT", & time) != NULL || strptime(request -> if_modified_since, "%c", & time) != NULL) {
-                //difftime returns difference in seconds between two times.
-                //    last modified file            if modified since time
-                if (difftime(file_metadata.st_mtime, mktime( & time)) >= 0) {
-                    // if we enter here, the file has been modified so we're good
+        // Create etag that will be used in later conditional checks (based on Piazza post recommendation)
+        // For reference, here is Apache's implementation of ETags:
+        // http://httpd.apache.org/docs/2.2/mod/core.html#FileETag 
+        // etag construction: inode number - time of last modification - total size, in bytes
+        char *etag;
+        asprintf(&etag, "%ld-%ld-%lld", (long)file_metadata.st_ino, (long)file_metadata.st_mtime, (long long)file_metadata.st_size);
+
+        if (strcasecmp("HTTP/1.1", request->version) == 0) {
+            /* ==================================== if-modified-since ==================================== */
+            int works = 2;
+            if (request -> if_modified_since != NULL) {
+                struct tm time;
+                // Converting the request time from the header request to correct format and storing it in time
+                if (strptime(request -> if_modified_since, date_format, & time) != NULL || strptime(request -> if_modified_since, "%A, %d-%b-%y %T GMT", & time) != NULL || strptime(request -> if_modified_since, "%c", & time) != NULL) {
+                    // Now we that have the last modified date from the file and the if modified since date from the request header, we can compare the dates.
+                    // difftime returns difference in seconds between two times.
+                    //    last modified file            if modified since time
+                    if (difftime(file_metadata.st_mtime, mktime( & time)) >= 0) {
+                        // If we enter here, the file has been modified so we're good
+                        works = 1;
+                    } else {
+                        works = 0;
+                    }
+                }
+            }
+            if (works == 0) {
+                // Did not pass the If-Modified-Since condition. Send error message to client.
+                // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
+                char header_error[] = "HTTP/1.0 304 Not Modified Since\r\n\r\n";
+                write(fd_client, header_error, strlen(header_error));
+                return;
+            }
+            /* ==================================== if-unmodified-since ==================================== */
+            if (request->if_modified_since != NULL) {
+                struct tm time;
+                // Converting the request time from the header request to correct format and storing it in time
+                if (strptime(request->if_unmodified_since, date_format, &time) != NULL || strptime(request->if_unmodified_since, "%A, %d-%b-%y %T GMT", &time) != NULL || strptime(request->if_unmodified_since, "%c", &time) != NULL) {
+                    // Now we that have the last modified date from the file and the if modified since date from the request header, we can compare the dates.
+                    // difftime returns difference in seconds between two times.
+                    //     last modified file            if modified since time
+                    if (difftime(file_metadata.st_mtime, mktime(&time)) >= 0) {
+                        // If we enter here, the file has been modified after the date in the header so it will fail
+                        works = 0;
+                    }
+                    else {
+                        works = 1;
+                        //printf("passed if-unmodified \n");
+                    }
+                }
+            }
+            if (works == 0) {
+                // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
+                char header_error[] = "HTTP/1.1 412 Precondition Failed\r\n\r\n";
+                //write(fd_client, header_error, strlen(header_error));
+                write(fd_client, header_error, strlen(header_error));
+                return;
+            }
+            /* ==================================== if-none-match ==================================== */
+            works = 3;
+            if (request->if_none_match != NULL) {
+                if (strcmp(request->if_none_match, "*") == 0)
+                {
+                    // etags match, it's a fail ** ask professor about this **
+                    works = 0;
+                }
+                char *index;
+                index = strtok(request->if_none_match, ", ");
+                //printf("index: %s \n", index);
+                while (index != NULL) {
+                    // checking if the etag starts with W/ and if it does, increment the index and perform a strong 
+                    // validation on the rest of the string
+                    if (strncmp(index, "W/", 2) == 0) {
+                        index = index + 2;
+                    }
+                    if (strcmp(index, etag) == 0) {
+                        // etags match, it's a fail
+                        works = 0;
+                    }
+                    index = strtok(NULL, ", ");
+                }
+                // etags dont match
+                
+                if (works == 3) {
+                    // etags don't match, it's a pass
                     works = 1;
-                } else {
+                };
+            }
+            if (works == 0) {
+                // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
+                char header_error[] = "HTTP/1.1 412 Precondition Failed\r\n\r\n";
+                write(fd_client, header_error, strlen(header_error));
+                return;
+            }
+
+            /* ==================================== if-match ==================================== */
+            if (request->if_match != NULL && works != 1) {
+                if (strcmp(request->if_match, "*") == 0) {
+                    // etag matches
+                    works = 1;
+                }
+                char *index;
+                index = strtok(request->if_match, ", ");
+
+                while (index != NULL) {
+                    // Checking if the etag starts with W/ and if it does, increment the index and perform a strong 
+                    // validation on the rest of the string
+                    if (strncmp(index, "W/", 2) == 0) {
+                        index = index + 2;
+                    }
+                    if (strcmp(index, etag) == 0) {
+                        // etag matches
+                        works = 1;
+                    }
+                    index = strtok(NULL, ", ");
+                }
+                // etags dont match   
+                if (works == 3) {
                     works = 0;
                 }
             }
-        }
-        if (works == 0) {
-            // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
-            char header_error[] = "HTTP/1.0 304 Not Modified Since\r\n\r\n";
-			write(fd_client, header_error, strlen(header_error));
-            write(fd_client, errorWebpage304, strlen(errorWebpage304));
-            return;
+            if (works == 0) {
+                // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
+                char header_error[] = "HTTP/1.1 412 Precondition Failed\r\n\r\n";
+                write(fd_client, header_error, strlen(header_error));
+                return;
+            }
+        } else if (strcasecmp("HTTP/1.0", request->version) == 0) {
+            // Only check for If-Modified-Since
+            int works = 2;
+            if (request -> if_modified_since != NULL) {
+                struct tm time;
+                if (strptime(request -> if_modified_since, date_format, & time) != NULL || strptime(request -> if_modified_since, "%A, %d-%b-%y %T GMT", & time) != NULL || strptime(request -> if_modified_since, "%c", & time) != NULL) {
+                    // Now we that have the last modified date from the file and the if modified since date from the request header, we can compare the dates.
+                    //difftime returns difference in seconds between two times.
+                    //    last modified file            if modified since time
+                    if (difftime(file_metadata.st_mtime, mktime( & time)) >= 0) {
+                        // if we enter here, the file has been modified so we're good
+                        works = 1;
+                    } else {
+                        works = 0;
+                    }
+                }
+            }
+            if (works == 0) {
+                // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
+                char header_error[] = "HTTP/1.0 304 Not Modified Since\r\n\r\n";
+                write(fd_client, header_error, strlen(header_error));
+                return;
+            }
         }
 
         char statusLine[] = "HTTP/1.0 200 OK\r\n";
 		write(fd_client, statusLine, strlen(statusLine));
+
         char curr_date[REQ_LINE_SIZE/2];
         char header1[200]; // Make line size 200 so curr_date can fit in it.
         time_t sec = time(NULL);

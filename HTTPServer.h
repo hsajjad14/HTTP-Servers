@@ -1,8 +1,6 @@
 #ifndef HTTPSERVER
 #define HTTPSERVER
 
-#define _XOPEN_SOURCE // for https://man7.org/linux/man-pages/man3/strptime.3.html
-
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <math.h>
