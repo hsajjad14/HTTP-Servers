@@ -19,7 +19,9 @@
 #define CRLF "\r\n"
 #define CRLFCRLF "\r\n\r\n"
 #define MAX_BUF 1000000
-#define TIMEOUT 5 //seconds for timeout
+#define TIMEOUT 10 //seconds for timeout
+#define MAX_REQUESTS 3 // for testing set to 3, normally is 100
+#define LINE_SIZE 200
 // Status codes
 #define OK 200
 #define MOVED_PERMANENTLY 301
