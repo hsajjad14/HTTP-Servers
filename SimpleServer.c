@@ -114,7 +114,7 @@ int main(int argc, char ** argv) {
 
             // Construct and send the HTTP response
             printf("file in clientFile = \"%s\"\n", clientFile -> filePath);
-            makeServerResponse(clientFile, httpCode, request, fd_client);
+            makeServerResponse(clientFile, httpCode, request, fd_client, 1);
 
             close(fd_client);
             printf("closing client connection--\n");

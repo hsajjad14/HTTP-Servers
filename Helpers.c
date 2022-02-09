@@ -314,38 +314,45 @@ Constructs and sends an HTTP response to the client based on the HTTP request, c
 and the <clientFile> requested from the client.
 */
 void makeServerResponse(struct file * clientFile, 
-    int * currentStatusCode, struct http_request * request, int fd_client) {
+    int * currentStatusCode, struct http_request * request, int fd_client, int is_simple) {
     FILE * filePtr;
+
+    if ((strcasecmp("HTTP/1.1", request->version) == 0) && (is_simple == 0)) {
+        write(fd_client, "HTTP/1.1 ", strlen("HTTP/1.1 "));
+    } else {
+        // Default version of this server is HTTP/1.0
+        write(fd_client, "HTTP/1.0 ", strlen("HTTP/1.0 "));
+    }
 
     // Handle erroroneous requests first; on error, don't add extra headers.
     if ( * currentStatusCode != 200) {
         if ( * currentStatusCode == 301) {
-            char statusLine[] = "HTTP/1.0 301 Moved Permanently\r\n";
+            char statusLine[] = "301 Moved Permanently\r\n";
 			write(fd_client, statusLine, strlen(statusLine));
             write(fd_client, errorWebpage301, strlen(errorWebpage301));
             return;
         } else if ( * currentStatusCode == 400) {
-            char statusLine[] = "HTTP/1.0 400 Bad Request\r\n";
+            char statusLine[] = "400 Bad Request\r\n";
 			write(fd_client, statusLine, strlen(statusLine));
             write(fd_client, errorWebpage400, strlen(errorWebpage400));
             return;
         } else if ( * currentStatusCode == 404) {
-            char statusLine[] = "HTTP/1.0 404 Not Found\r\n";
+            char statusLine[] = "404 Not Found\r\n";
 			write(fd_client, statusLine, strlen(statusLine));
             write(fd_client, errorWebpage404, strlen(errorWebpage404));
             return;
         } else if ( * currentStatusCode == 505) {
-            char statusLine[] = "HTTP/1.0 501 Not Implemented\r\n";
+            char statusLine[] = "501 Not Implemented\r\n";
 			write(fd_client, statusLine, strlen(statusLine));
             write(fd_client, errorWebpage501, strlen(errorWebpage501));
             return;
         } else if ( * currentStatusCode == 501) {
-            char statusLine[] = "HTTP/1.0 505 HTTP Version Not Supported\r\n";
+            char statusLine[] = "505 HTTP Version Not Supported\r\n";
 			write(fd_client, statusLine, strlen(statusLine));
             write(fd_client, errorWebpage505, strlen(errorWebpage505));
             return;
         } else {
-            char statusLine[] = "HTTP/1.0 400 Bad Request\r\n";
+            char statusLine[] = "400 Bad Request\r\n";
 			write(fd_client, statusLine, strlen(statusLine));
             write(fd_client, errorWebpage400, strlen(errorWebpage400));
             return;
@@ -356,7 +363,7 @@ void makeServerResponse(struct file * clientFile,
 
     // Check if file exists
     if (filePtr == NULL) {
-        char statusLine[] = "HTTP/1.0 404 Not Found\r\n";
+        char statusLine[] = "404 Not Found\r\n";
 		write(fd_client, statusLine, strlen(statusLine));
         write(fd_client, errorWebpage404, strlen(errorWebpage404));
         * currentStatusCode = 404;
@@ -402,7 +409,7 @@ void makeServerResponse(struct file * clientFile,
             if (works == 0) {
                 // Did not pass the If-Modified-Since condition. Send error message to client.
                 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
-                char header_error[] = "HTTP/1.0 304 Not Modified Since\r\n\r\n";
+                char header_error[] = "304 Not Modified Since\r\n\r\n";
                 write(fd_client, header_error, strlen(header_error));
                 return;
             }
@@ -426,7 +433,7 @@ void makeServerResponse(struct file * clientFile,
             }
             if (works == 0) {
                 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
-                char header_error[] = "HTTP/1.1 412 Precondition Failed\r\n\r\n";
+                char header_error[] = "412 Precondition Failed\r\n\r\n";
                 //write(fd_client, header_error, strlen(header_error));
                 write(fd_client, header_error, strlen(header_error));
                 return;
@@ -463,7 +470,7 @@ void makeServerResponse(struct file * clientFile,
             }
             if (works == 0) {
                 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
-                char header_error[] = "HTTP/1.1 412 Precondition Failed\r\n\r\n";
+                char header_error[] = "412 Precondition Failed\r\n\r\n";
                 write(fd_client, header_error, strlen(header_error));
                 return;
             }
@@ -496,7 +503,7 @@ void makeServerResponse(struct file * clientFile,
             }
             if (works == 0) {
                 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
-                char header_error[] = "HTTP/1.1 412 Precondition Failed\r\n\r\n";
+                char header_error[] = "412 Precondition Failed\r\n\r\n";
                 write(fd_client, header_error, strlen(header_error));
                 return;
             }
@@ -519,13 +526,13 @@ void makeServerResponse(struct file * clientFile,
             }
             if (works == 0) {
                 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
-                char header_error[] = "HTTP/1.0 304 Not Modified Since\r\n\r\n";
+                char header_error[] = "304 Not Modified Since\r\n\r\n";
                 write(fd_client, header_error, strlen(header_error));
                 return;
             }
         }
 
-        char statusLine[] = "HTTP/1.0 200 OK\r\n";
+        char statusLine[] = "200 OK\r\n";
 		write(fd_client, statusLine, strlen(statusLine));
 
         char curr_date[REQ_LINE_SIZE/2];
@@ -639,7 +646,7 @@ void makeServerResponse(struct file * clientFile,
 
         } else {
             // invalid file type
-            char errorStatusLine[] = "HTTP/1.0 400 Bad Request\r\n";
+            char errorStatusLine[] = "400 Bad Request\r\n";
             write(fd_client, errorStatusLine, strlen(errorStatusLine));
             write(fd_client, errorWebpage400, strlen(errorWebpage400));
 			* currentStatusCode = 400;

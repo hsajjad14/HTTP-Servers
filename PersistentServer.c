@@ -133,7 +133,7 @@ int main(int argc, char ** argv) {
 
                 // Construct and send the HTTP response
                 printf("file in clientFile = \"%s\"\n", clientFile -> filePath);
-                makeServerResponse(clientFile, httpCode, request, fd_client);
+                makeServerResponse(clientFile, httpCode, request, fd_client, 0);
                
                 if (request -> keep_alive == 0) {
                     // "Timeout" because the client does not expect persistent connection

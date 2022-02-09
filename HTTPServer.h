@@ -58,6 +58,6 @@ extern int is_get_req(struct http_request * h);
 extern off_t fsize(const char * filename, struct stat * st);
 extern int parseRequestInitial(char * initial, struct http_request * h);
 extern int parseRequest(char * req, struct http_request * h);
-extern void makeServerResponse(struct file * clientFile, int * currentStatusCode, struct http_request * request, int fd_client);
+extern void makeServerResponse(struct file * clientFile, int * currentStatusCode, struct http_request * request, int fd_client, int is_simple);
 
 #endif
