@@ -12,7 +12,6 @@ char webpage[] = "HTTP/1.0 200 OK\r\n"
 struct threadData {
     int *httpCode;
     char *buf;
-    int bytes_read;
     char *http_root_path;
     int fd_client;
 };
@@ -23,6 +22,7 @@ static int fd_server;
 // global accesible variables to all threads
 int keep_alive = 1;
 pthread_mutex_t keep_alive_mutex;
+pthread_mutex_t read_from_client_mutex;
 pthread_mutex_t write_to_client_mutex;
 pthread_t thread[MAX_REQUESTS];
 
@@ -112,11 +112,12 @@ int get_msg(int fd_client, char * buf) {
             not_done_reading = 0;
         } else if (strcmp(CRLF, currentLine) == 0) {
             printf(" empty crlf line\n");
-            emptyLines++;
+
             if (emptyLines == 1) {
                 not_done_reading = 0;
                 printf("emptylines %d\n", emptyLines);
             }
+            emptyLines++;
 
 
         } else if (strcmp("\n", currentLine) == 0) {
@@ -231,7 +232,7 @@ int parseRequest(char * req, struct http_request * h) {
             for (int i = 0; i < colon_pointer_index; i++) {
                 header[i] = ptr[i];
             }
-
+            printf("here?6\n");
             // get body
             for (int i = colon_pointer_index + 2; i < strlen(ptr); i++) {
                 header_body[i - colon_pointer_index - 2] = ptr[i];
@@ -240,7 +241,7 @@ int parseRequest(char * req, struct http_request * h) {
             if (strcmp("If-Modified-Since", header) == 0) {
                 // Parse 'If-Modified-Since' header value
                 strncpy(h -> if_modified_since, header_body, strlen(header_body));
-                printf("\"%s\": \"%s\"\n", header, h -> if_modified_since);
+                // printf("\"%s\": \"%s\"\n", header, h -> if_modified_since);
             }
             printf("here?4\n");
             if (strncmp("Connection", header, 10) == 0) {
@@ -509,15 +510,35 @@ void makeServerResponse(struct file * clientFile, char * bufferToSendClient,
 }
 
 void *processRequestByThread(void *t) {
-    struct threadData *thread_data = (struct threadData *)t;
+
     printf("\t\tWhere are we C\n");
+
+    pthread_mutex_lock(&keep_alive_mutex);
+    if (keep_alive == 0) {
+       return NULL;
+    }
+    pthread_mutex_unlock(&keep_alive_mutex);
+
+    struct threadData *thread_data = (struct threadData *)t;
+
+    pthread_mutex_lock(&read_from_client_mutex);
+    int bytes_read = get_msg(thread_data->fd_client, thread_data->buf);
+    pthread_mutex_unlock(&read_from_client_mutex);
+    // unsure about this
+    if (bytes_read < 0) {
+       return NULL;
+    }
+
+
+
+
     *(thread_data->httpCode) = 200; // default value
 
     // read in the request from the client
 
     //int req_bytes_read = get_msg(fd_client, buf);
 
-    if (thread_data->bytes_read < 0) {
+    if (bytes_read < 0) {
         *(thread_data->httpCode) = 400; // something went wrong with the request reading (tentative)
     }
 
@@ -542,11 +563,11 @@ void *processRequestByThread(void *t) {
 
 
     // check if connection closed from clients end, if its 0 don't nee to check
+    pthread_mutex_lock(&keep_alive_mutex);
     if (keep_alive == 1) {
-       pthread_mutex_lock(&keep_alive_mutex);
        keep_alive = request->keep_alive;
-       pthread_mutex_unlock(&keep_alive_mutex);
     }
+    pthread_mutex_unlock(&keep_alive_mutex);
 
     //TODO: remove
     printf("method parsed out: %s\n", request -> method);
@@ -628,7 +649,7 @@ int main(int argc, char ** argv) {
     socklen_t sin_len = sizeof(client_addr);
     int fd_client;
 
-    char buf[MAX_BUF];
+    // char buf[MAX_BUF];
 
     bindAndListen(port_num, server_addr);
 
@@ -668,64 +689,88 @@ int main(int argc, char ** argv) {
             pthread_attr_t attr;
             int rc;
             void *status;
+            long t;
 
             pthread_mutex_init(&keep_alive_mutex, NULL);
             pthread_mutex_init(&write_to_client_mutex, NULL);
+            pthread_mutex_init(&read_from_client_mutex, NULL);
 
             /* Initialize and set thread detached attribute */
             pthread_attr_init(&attr);
             pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
 
+
+            for (t = 0; t < MAX_REQUESTS; t++) {
+
+               struct threadData *my_data = (struct threadData *)malloc(sizeof(struct threadData));
+               my_data->httpCode = (int*)malloc(sizeof(int));
+               my_data->buf = (char*)malloc(sizeof(char)*MAX_BUF);
+               my_data->fd_client = fd_client;
+               my_data->http_root_path = (char*)malloc(sizeof(char)*strlen(http_root_path));
+               strncpy(my_data->http_root_path, http_root_path, strlen(http_root_path));
+               rc = pthread_create(&thread[t], &attr, processRequestByThread, (void *)my_data);
+
+               if (rc) {
+                   printf("ERROR; return code from pthread_create() is %d\n", rc);
+                   // exit(-1);
+               }
+            }
+
             // Keep looping as long as the client has something to send and
             // the last request was OK
-            int bytes_read;
-            int requests = 0;
-            while (keep_alive == 1 && *httpCode == 200 && (bytes_read = get_msg(fd_client, buf)) > 0 && requests < MAX_REQUESTS) {
-
-                // make threads to do everything inside here
-                struct threadData *my_data = (struct threadData *)malloc(sizeof(struct threadData));
-                my_data->httpCode = (int*)malloc(sizeof(int));
-                my_data->buf = (char*)malloc(sizeof(char)*MAX_BUF);
-                my_data->bytes_read = bytes_read;
-                my_data->fd_client = fd_client;
-                my_data->http_root_path = (char*)malloc(sizeof(char)*strlen(http_root_path));
-                strncpy(my_data->http_root_path, http_root_path, strlen(http_root_path));
-                strncpy(my_data->buf, buf, MAX_BUF); // how much to copy from buf?
-
-                rc = pthread_create(&thread[requests], &attr, processRequestByThread, (void *)my_data);
-                if (rc) {
-                    printf("ERROR; return code from pthread_create() is %d\n", rc);
-                    exit(-1);
-                }
-
-                // make keep_alive a shared variable
-
-                requests++;
-
-            }
+            // int bytes_read;
+            // int requests = 0;
+            // while (keep_alive == 1 && *httpCode == 200 && (bytes_read = get_msg(fd_client, buf)) > 0 && requests < MAX_REQUESTS) {
+            //     printf("kjsadflk\n");
+            //     // make threads to do everything inside here
+            //     struct threadData *my_data = (struct threadData *)malloc(sizeof(struct threadData));
+            //     my_data->httpCode = (int*)malloc(sizeof(int));
+            //     my_data->buf = (char*)malloc(sizeof(char)*MAX_BUF);
+            //     my_data->fd_client = fd_client;
+            //     my_data->http_root_path = (char*)malloc(sizeof(char)*strlen(http_root_path));
+            //     strncpy(my_data->http_root_path, http_root_path, strlen(http_root_path));
+            //     strncpy(my_data->buf, buf, MAX_BUF); // how much to copy from buf?
+            //
+            //     rc = pthread_create(&thread[requests], &attr, processRequestByThread, (void *)my_data);
+            //     if (rc) {
+            //         printf("ERROR; return code from pthread_create() is %d\n", rc);
+            //         // exit(-1);
+            //     }
+            //     // make keep_alive a shared variable
+            //     requests++;
+            // }
             // make the rest
-            for (long t = requests; t < MAX_REQUESTS; t++) {
-               rc = pthread_create(&thread[t], &attr, doNothing, (void *)t);
-            }
+            // for (long t = requests; t < MAX_REQUESTS; t++) {
+            //    rc = pthread_create(&thread[t], &attr, doNothing, (void *)t);
+            // }
+            //
+            // // wait for all threads to end before closing the socket
+            // for (long t = 0; t < MAX_REQUESTS; t++) {
+            //    rc = pthread_join(thread[t], &status);
+            //    if (rc) {
+            //        printf("ERROR; return code from pthread_join() is %d\n", rc);
+            //        // exit(-1);
+            //    }
+            // }
 
-            // wait for all threads to end before closing the socket
             for (long t = 0; t < MAX_REQUESTS; t++) {
                rc = pthread_join(thread[t], &status);
                if (rc) {
-                   printf("ERROR; return code from pthread_join() is %d\n", rc);
-                   exit(-1);
+                    printf("ERROR; return code from pthread_join() is %d\n", rc);
+                    // exit(-1);
                }
             }
 
             pthread_mutex_destroy(&keep_alive_mutex);
             pthread_mutex_destroy(&write_to_client_mutex);
+            pthread_mutex_destroy(&read_from_client_mutex);
 
-            printf("\t\tWhere are we D\n");
+            printf("\t-------\tWhere are we D\n");
             close(fd_client);
             exit(0);
         }
 
-        printf("did we get here\n");
+        printf("------------------\t---did we get here\n");
         // parent process
         close(fd_client);
     }
