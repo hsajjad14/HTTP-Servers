@@ -1,4 +1,5 @@
-#define _XOPEN_SOURCE // for https://man7.org/linux/man-pages/man3/strptime.3.html
+#ifndef HTTPSERVER
+#define HTTPSERVER
 
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -20,11 +21,9 @@
 #define CRLFCRLF "\r\n\r\n"
 #define MAX_BUF 1000000
 #define TIMEOUT 10 //seconds for timeout
-// Status codes
-#define OK 200
-#define MOVED_PERMANENTLY 301
-#define BAD_REQUEST 400
-#define HTTP_VER_NOT_SUPPORTED 505
+#define MAX_REQUESTS 3 // For testing, set to 3. Normally is 100.
+
+#define REQ_LINE_SIZE 200
 
 struct file {
     int fileType;
@@ -51,3 +50,14 @@ struct http_request {
 	char *if_modified_since;
 	char *if_unmodified_since;
 };
+
+extern void bindAndListen(int port, struct sockaddr_in serv_addr, int * fd_server);
+extern int get_msg(int fd_client, char * buf);
+extern int find_ext(char * fname);
+extern int is_get_req(struct http_request * h);
+extern off_t fsize(const char * filename, struct stat * st);
+extern int parseRequestInitial(char * initial, struct http_request * h);
+extern int parseRequest(char * req, struct http_request * h);
+extern void makeServerResponse(struct file * clientFile, int * currentStatusCode, struct http_request * request, int fd_client);
+
+#endif
