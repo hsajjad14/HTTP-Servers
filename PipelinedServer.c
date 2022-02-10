@@ -17,7 +17,6 @@ struct threadData {
     int fd_client;
 };
 
-static int fd_server;
 // static int request_line_size = 200;
 
 // global accesible variables to all threads
@@ -28,7 +27,62 @@ pthread_mutex_t write_to_client_mutex;
 pthread_t thread[MAX_REQUESTS];
 
 // ------------------------------ HELPER FUNCTIONS  --------------------------------
+// Error webpages (for requests from a browser)
+char * errorWebpage301Pipelined =
+"Content-Type: text/html; charset=UTF-8\r\n\r\n"
+"<!DOCTYPE html>\r\n"
+"<html><head><title>HTTP Error Message</title>\r\n"
+"<style>body {background-color: #FFFF00}</style></head>\r\n"
+"<body><center><h1>301: Moved Permanently</h1><br><p>The requested file has moved to a new location.</p>\r\n"
+"</center></body></html>\r\n";
 
+char * errorWebpage304Pipelined =
+"Content-Type: text/html; charset=UTF-8\r\n\r\n"
+"<!DOCTYPE html>\r\n"
+"<html><head><title>HTTP Error Message</title>\r\n"
+"<style>body {background-color: #FFFF00}</style></head>\r\n"
+"<body><center><h1>304: Not Modified</h1><br><p>The URL has not been modified since the specified date.</p>\r\n"
+"</center></body></html>\r\n";
+
+char * errorWebpage400Pipelined =
+"Content-Type: text/html; charset=UTF-8\r\n\r\n"
+"<!DOCTYPE html>\r\n"
+"<html><head><title>HTTP Error Message</title>\r\n"
+"<style>body {background-color: #FFFF00}</style></head>\r\n"
+"<body><center><h1>400: Bad Request</h1><br><p>The server did not understand the request.</p>\r\n"
+"</center></body></html>\r\n";
+
+char * errorWebpage404Pipelined =
+"Content-Type: text/html; charset=UTF-8\r\n\r\n"
+"<!DOCTYPE html>\r\n"
+"<html><head><title>HTTP Error Message</title>\r\n"
+"<style>body {background-color: #FFFF00}</style></head>\r\n"
+"<body><center><h1>404: Not Found</h1><br><p>The server could not find the requested file.</p>\r\n"
+"</center></body></html>\r\n";
+
+char * errorWebpage414Pipelined =
+"Content-Type: text/html; charset=UTF-8\r\n\r\n"
+"<!DOCTYPE html>\r\n"
+"<html><head><title>HTTP Error Message</title>\r\n"
+"<style>body {background-color: #FFFF00}</style></head>\r\n"
+"<body><center><h1>414: Request URL Too Long</h1><br><p>The URL in the request is too long.</p>\r\n"
+"</center></body></html>\r\n";
+
+char * errorWebpage501Pipelined =
+"Content-Type: text/html; charset=UTF-8\r\n\r\n"
+"<!DOCTYPE html>\r\n"
+"<html><head><title>HTTP Error Message</title>\r\n"
+"<style>body {background-color: #FFFF00}</style></head>\r\n"
+"<body><center><h1>501: Not Implemented</h1><br><p>The server does not support the requested functionality.</p>\r\n"
+"</center></body></html>\r\n";
+
+char * errorWebpage505Pipelined =
+"Content-Type: text/html; charset=UTF-8\r\n\r\n"
+"<!DOCTYPE html>\r\n"
+"<html><head><title>HTTP Error Message</title>\r\n"
+"<style>body {background-color: #FFFF00}</style></head>\r\n"
+"<body><center><h1>505: Version Not Supported</h1><br><p>The server only supports HTTP/1.0 and HTTP/1.1</p>\r\n"
+"</center></body></html>\r\n";
 
 /*
 Constructs an HTTP response to the client based on the HTTP request, current status,
@@ -51,7 +105,7 @@ void makeServerResponsePipelinedVesion(struct file * clientFile, char * bufferTo
         if ( * currentStatusCode == 301) {
             char statusLine[] = "301 Moved Permanently\r\n";
 			         strncat(bufferToSendClient, statusLine, strlen(statusLine));
-            strncat(bufferToSendClient, errorWebpage301, strlen(errorWebpage301));
+            strncat(bufferToSendClient, errorWebpage301Pipelined, strlen(errorWebpage301Pipelined));
             pthread_mutex_lock( & write_to_client_mutex);
             write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
             pthread_mutex_unlock( & write_to_client_mutex);
@@ -59,7 +113,7 @@ void makeServerResponsePipelinedVesion(struct file * clientFile, char * bufferTo
         } else if ( * currentStatusCode == 400) {
             char statusLine[] = "400 Bad Request\r\n";
 			         strncat(bufferToSendClient, statusLine, strlen(statusLine));
-            strncat(bufferToSendClient, errorWebpage400, strlen(errorWebpage400));
+            strncat(bufferToSendClient, errorWebpage400Pipelined, strlen(errorWebpage400Pipelined));
             pthread_mutex_lock( & write_to_client_mutex);
             write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
             pthread_mutex_unlock( & write_to_client_mutex);
@@ -67,7 +121,7 @@ void makeServerResponsePipelinedVesion(struct file * clientFile, char * bufferTo
         } else if ( * currentStatusCode == 404) {
             char statusLine[] = "404 Not Found\r\n";
 			         strncat(bufferToSendClient, statusLine, strlen(statusLine));
-            strncat(bufferToSendClient, errorWebpage404, strlen(errorWebpage404));
+            strncat(bufferToSendClient, errorWebpage404Pipelined, strlen(errorWebpage404Pipelined));
             pthread_mutex_lock( & write_to_client_mutex);
             write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
             pthread_mutex_unlock( & write_to_client_mutex);
@@ -75,7 +129,7 @@ void makeServerResponsePipelinedVesion(struct file * clientFile, char * bufferTo
         } else if ( * currentStatusCode == 505) {
             char statusLine[] = "501 Not Implemented\r\n";
 			         strncat(bufferToSendClient, statusLine, strlen(statusLine));
-            strncat(bufferToSendClient, errorWebpage501, strlen(errorWebpage501));
+            strncat(bufferToSendClient, errorWebpage501Pipelined, strlen(errorWebpage501Pipelined));
             pthread_mutex_lock( & write_to_client_mutex);
             write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
             pthread_mutex_unlock( & write_to_client_mutex);
@@ -83,7 +137,7 @@ void makeServerResponsePipelinedVesion(struct file * clientFile, char * bufferTo
         } else if ( * currentStatusCode == 501) {
             char statusLine[] = "505 HTTP Version Not Supported\r\n";
 			         strncat(bufferToSendClient, statusLine, strlen(statusLine));
-            strncat(bufferToSendClient, errorWebpage505, strlen(errorWebpage505));
+            strncat(bufferToSendClient, errorWebpage505Pipelined, strlen(errorWebpage505Pipelined));
             pthread_mutex_lock( & write_to_client_mutex);
             write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
             pthread_mutex_unlock( & write_to_client_mutex);
@@ -91,7 +145,7 @@ void makeServerResponsePipelinedVesion(struct file * clientFile, char * bufferTo
         } else {
             char statusLine[] = "400 Bad Request\r\n";
 			         strncat(bufferToSendClient, statusLine, strlen(statusLine));
-            strncat(bufferToSendClient, errorWebpage400, strlen(errorWebpage400));
+            strncat(bufferToSendClient, errorWebpage400Pipelined, strlen(errorWebpage400Pipelined));
             pthread_mutex_lock( & write_to_client_mutex);
             write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
             pthread_mutex_unlock( & write_to_client_mutex);
@@ -105,7 +159,7 @@ void makeServerResponsePipelinedVesion(struct file * clientFile, char * bufferTo
     if (filePtr == NULL) {
         char statusLine[] = "404 Not Found\r\n";
 		      strncat(bufferToSendClient, statusLine, strlen(statusLine));
-        strncat(bufferToSendClient, errorWebpage404, strlen(errorWebpage404));
+        strncat(bufferToSendClient, errorWebpage404Pipelined, strlen(errorWebpage404Pipelined));
         pthread_mutex_lock( & write_to_client_mutex);
         write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
         pthread_mutex_unlock( & write_to_client_mutex);
@@ -420,7 +474,7 @@ void makeServerResponsePipelinedVesion(struct file * clientFile, char * bufferTo
             // invalid file type
             char errorStatusLine[] = "400 Bad Request\r\n";
             strncat(bufferToSendClient, errorStatusLine, strlen(errorStatusLine));
-            strncat(bufferToSendClient, errorWebpage400, strlen(errorWebpage400));
+            strncat(bufferToSendClient, errorWebpage400Pipelined, strlen(errorWebpage400Pipelined));
             pthread_mutex_lock( & write_to_client_mutex);
             write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
             pthread_mutex_unlock( & write_to_client_mutex);
@@ -474,13 +528,13 @@ void * processRequestByThread(void * t) {
         (struct http_request * ) malloc(sizeof(struct http_request));
     request -> version = calloc(9, sizeof(char));
     request -> method = calloc(4, sizeof(char));
-    request -> uri = calloc(LINE_SIZE, sizeof(char));
+    request -> uri = calloc(REQ_LINE_SIZE, sizeof(char));
     request -> keep_alive = 1; // default for HTTP/1.1
-    request -> accept = calloc(LINE_SIZE, sizeof(char));
-    request -> if_match = calloc(LINE_SIZE, sizeof(char));
-    request -> if_none_match = calloc(LINE_SIZE, sizeof(char));
-    request -> if_modified_since = calloc(LINE_SIZE, sizeof(char));
-    request -> if_unmodified_since = calloc(LINE_SIZE, sizeof(char));
+    request -> accept = calloc(REQ_LINE_SIZE, sizeof(char));
+    request -> if_match = calloc(REQ_LINE_SIZE, sizeof(char));
+    request -> if_none_match = calloc(REQ_LINE_SIZE, sizeof(char));
+    request -> if_modified_since = calloc(REQ_LINE_SIZE, sizeof(char));
+    request -> if_unmodified_since = calloc(REQ_LINE_SIZE, sizeof(char));
 
     // parse the client request
     parseRequest(thread_data -> buf, request);
@@ -571,17 +625,18 @@ int main(int argc, char ** argv) {
     struct sockaddr_in server_addr, client_addr;
     socklen_t sin_len = sizeof(client_addr);
     int fd_client;
+    int * fd_server = (int *) malloc(sizeof(int));
 
     // char buf[MAX_BUF];
 
-    bindAndListen(port_num, server_addr);
+    bindAndListen(port_num, server_addr, fd_server);
 
     struct timeval * t_val = calloc(1, sizeof(struct timeval));
     t_val -> tv_sec = TIMEOUT;
     t_val -> tv_usec = 0;
 
     while (1) {
-        fd_client = accept(fd_server, (struct sockaddr * ) & client_addr, & sin_len);
+        fd_client = accept(*fd_server, (struct sockaddr * ) & client_addr, & sin_len);
 
         if (fd_client == -1) {
             perror("connection failed --\n");
@@ -593,7 +648,7 @@ int main(int argc, char ** argv) {
         if (!fork()) {
             printf("\t\tWhere are we B\n");
             // child processes returns 0
-            close(fd_server);
+            close(*fd_server);
 
             // Use SO_RECVTIMEO flag to specify a timeout value for input from socket
             // Sources: https://stackoverflow.com/questions/4181784/how-to-set-socket-timeout-in-c-when-making-multiple-connections
