@@ -35,46 +35,66 @@ Constructs an HTTP response to the client based on the HTTP request, current sta
 and the <clientFile> requested from the client.
 */
 void makeServerResponsePipelinedVesion(struct file * clientFile, char * bufferToSendClient,
-    int * currentStatusCode, struct http_request * request) {
+    int * currentStatusCode, struct http_request * request, int fd_client, int is_simple) {
     FILE * filePtr;
+
+    memset(bufferToSendClient, 0, MAX_BUF);
     if ((strcasecmp("HTTP/1.1", request->version) == 0) && (is_simple == 0)) {
-        write(fd_client, "HTTP/1.1 ", strlen("HTTP/1.1 "));
+        strncpy(bufferToSendClient, "HTTP/1.1 ", strlen("HTTP/1.1 "));
     } else {
         // Default version of this server is HTTP/1.0
-        write(fd_client, "HTTP/1.0 ", strlen("HTTP/1.0 "));
+        strncpy(bufferToSendClient, "HTTP/1.0 ", strlen("HTTP/1.0 "));
     }
 
     // Handle erroroneous requests first; on error, don't add extra headers.
     if ( * currentStatusCode != 200) {
         if ( * currentStatusCode == 301) {
             char statusLine[] = "301 Moved Permanently\r\n";
-			write(fd_client, statusLine, strlen(statusLine));
-            write(fd_client, errorWebpage301, strlen(errorWebpage301));
+			         strncat(bufferToSendClient, statusLine, strlen(statusLine));
+            strncat(bufferToSendClient, errorWebpage301, strlen(errorWebpage301));
+            pthread_mutex_lock( & write_to_client_mutex);
+            write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
+            pthread_mutex_unlock( & write_to_client_mutex);
             return;
         } else if ( * currentStatusCode == 400) {
             char statusLine[] = "400 Bad Request\r\n";
-			write(fd_client, statusLine, strlen(statusLine));
-            write(fd_client, errorWebpage400, strlen(errorWebpage400));
+			         strncat(bufferToSendClient, statusLine, strlen(statusLine));
+            strncat(bufferToSendClient, errorWebpage400, strlen(errorWebpage400));
+            pthread_mutex_lock( & write_to_client_mutex);
+            write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
+            pthread_mutex_unlock( & write_to_client_mutex);
             return;
         } else if ( * currentStatusCode == 404) {
             char statusLine[] = "404 Not Found\r\n";
-			write(fd_client, statusLine, strlen(statusLine));
-            write(fd_client, errorWebpage404, strlen(errorWebpage404));
+			         strncat(bufferToSendClient, statusLine, strlen(statusLine));
+            strncat(bufferToSendClient, errorWebpage404, strlen(errorWebpage404));
+            pthread_mutex_lock( & write_to_client_mutex);
+            write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
+            pthread_mutex_unlock( & write_to_client_mutex);
             return;
         } else if ( * currentStatusCode == 505) {
             char statusLine[] = "501 Not Implemented\r\n";
-			write(fd_client, statusLine, strlen(statusLine));
-            write(fd_client, errorWebpage501, strlen(errorWebpage501));
+			         strncat(bufferToSendClient, statusLine, strlen(statusLine));
+            strncat(bufferToSendClient, errorWebpage501, strlen(errorWebpage501));
+            pthread_mutex_lock( & write_to_client_mutex);
+            write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
+            pthread_mutex_unlock( & write_to_client_mutex);
             return;
         } else if ( * currentStatusCode == 501) {
             char statusLine[] = "505 HTTP Version Not Supported\r\n";
-			write(fd_client, statusLine, strlen(statusLine));
-            write(fd_client, errorWebpage505, strlen(errorWebpage505));
+			         strncat(bufferToSendClient, statusLine, strlen(statusLine));
+            strncat(bufferToSendClient, errorWebpage505, strlen(errorWebpage505));
+            pthread_mutex_lock( & write_to_client_mutex);
+            write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
+            pthread_mutex_unlock( & write_to_client_mutex);
             return;
         } else {
             char statusLine[] = "400 Bad Request\r\n";
-			write(fd_client, statusLine, strlen(statusLine));
-            write(fd_client, errorWebpage400, strlen(errorWebpage400));
+			         strncat(bufferToSendClient, statusLine, strlen(statusLine));
+            strncat(bufferToSendClient, errorWebpage400, strlen(errorWebpage400));
+            pthread_mutex_lock( & write_to_client_mutex);
+            write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
+            pthread_mutex_unlock( & write_to_client_mutex);
             return;
         }
     }
@@ -84,8 +104,11 @@ void makeServerResponsePipelinedVesion(struct file * clientFile, char * bufferTo
     // Check if file exists
     if (filePtr == NULL) {
         char statusLine[] = "404 Not Found\r\n";
-		write(fd_client, statusLine, strlen(statusLine));
-        write(fd_client, errorWebpage404, strlen(errorWebpage404));
+		      strncat(bufferToSendClient, statusLine, strlen(statusLine));
+        strncat(bufferToSendClient, errorWebpage404, strlen(errorWebpage404));
+        pthread_mutex_lock( & write_to_client_mutex);
+        write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
+        pthread_mutex_unlock( & write_to_client_mutex);
         * currentStatusCode = 404;
         return;
     } else {
@@ -130,7 +153,10 @@ void makeServerResponsePipelinedVesion(struct file * clientFile, char * bufferTo
                 // Did not pass the If-Modified-Since condition. Send error message to client.
                 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
                 char header_error[] = "304 Not Modified Since\r\n\r\n";
-                write(fd_client, header_error, strlen(header_error));
+                strncat(bufferToSendClient, header_error, strlen(header_error));
+                pthread_mutex_lock( & write_to_client_mutex);
+                write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
+                pthread_mutex_unlock( & write_to_client_mutex);
                 return;
             }
             /* ==================================== if-unmodified-since ==================================== */
@@ -155,7 +181,10 @@ void makeServerResponsePipelinedVesion(struct file * clientFile, char * bufferTo
                 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
                 char header_error[] = "412 Precondition Failed\r\n\r\n";
                 //write(fd_client, header_error, strlen(header_error));
-                write(fd_client, header_error, strlen(header_error));
+                strncat(bufferToSendClient, header_error, strlen(header_error));
+                pthread_mutex_lock( & write_to_client_mutex);
+                write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
+                pthread_mutex_unlock( & write_to_client_mutex);
                 return;
             }
             /* ==================================== if-none-match ==================================== */
@@ -191,7 +220,10 @@ void makeServerResponsePipelinedVesion(struct file * clientFile, char * bufferTo
             if (works == 0) {
                 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
                 char header_error[] = "412 Precondition Failed\r\n\r\n";
-                write(fd_client, header_error, strlen(header_error));
+                strncat(bufferToSendClient, header_error, strlen(header_error));
+                pthread_mutex_lock( & write_to_client_mutex);
+                write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
+                pthread_mutex_unlock( & write_to_client_mutex);
                 return;
             }
 
@@ -224,7 +256,10 @@ void makeServerResponsePipelinedVesion(struct file * clientFile, char * bufferTo
             if (works == 0) {
                 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
                 char header_error[] = "412 Precondition Failed\r\n\r\n";
-                write(fd_client, header_error, strlen(header_error));
+                strncat(bufferToSendClient, header_error, strlen(header_error));
+                pthread_mutex_lock( & write_to_client_mutex);
+                write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
+                pthread_mutex_unlock( & write_to_client_mutex);
                 return;
             }
         } else if (strcasecmp("HTTP/1.0", request->version) == 0) {
@@ -247,62 +282,65 @@ void makeServerResponsePipelinedVesion(struct file * clientFile, char * bufferTo
             if (works == 0) {
                 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/If-Modified-Since
                 char header_error[] = "304 Not Modified Since\r\n\r\n";
-                write(fd_client, header_error, strlen(header_error));
+                strncat(bufferToSendClient, header_error, strlen(header_error));
+                pthread_mutex_lock( & write_to_client_mutex);
+                write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
+                pthread_mutex_unlock( & write_to_client_mutex);
                 return;
             }
         }
 
         char statusLine[] = "200 OK\r\n";
-		write(fd_client, statusLine, strlen(statusLine));
+		      strncat(bufferToSendClient, statusLine, strlen(statusLine));
 
         char curr_date[REQ_LINE_SIZE/2];
         char header1[200]; // Make line size 200 so curr_date can fit in it.
         time_t sec = time(NULL);
         strftime(curr_date, REQ_LINE_SIZE, date_format, localtime( & (sec)));
         snprintf(header1, sizeof(header1), "Date: %s \r\n", curr_date);
-		write(fd_client, header1, strlen(header1));
+		      strncat(bufferToSendClient, header1, strlen(header1));
 
         // From https://stackoverflow.com/questions/8257714/how-to-convert-an-int-to-string-in-c
         int size = (int)((ceil(log10(clientFile -> fileSize)) + 1) * sizeof(char));
         char sizeToStr[size];
         sprintf(sizeToStr, "%d", clientFile -> fileSize);
         char header2_p1[] = "Content-Length: ";
-		write(fd_client, header2_p1, strlen(header2_p1));
+		      strncat(bufferToSendClient, header2_p1, strlen(header2_p1));
         // -1 to not write the null terminator as sprintf null terminates
-		write(fd_client, sizeToStr, size - 1);
+		      strncat(bufferToSendClient, sizeToStr, size - 1);
 
-		write(fd_client, CRLF, strlen(CRLF));
+		      strncat(bufferToSendClient, CRLF, strlen(CRLF));
 
         // Add Connection header
         char connectionHeader_p1[] = "Connection: ";
-        write(fd_client, connectionHeader_p1, strlen(connectionHeader_p1));
+        strncat(bufferToSendClient, connectionHeader_p1, strlen(connectionHeader_p1));
         if (request->keep_alive == 1) {
            char connectionHeader_p2[] = "Keep-Alive";
-           write(fd_client, connectionHeader_p2, strlen(connectionHeader_p2));
+           strncat(bufferToSendClient, connectionHeader_p2, strlen(connectionHeader_p2));
         } else {
            char connectionHeader_p2[] = "close";
-           write(fd_client, connectionHeader_p2, strlen(connectionHeader_p2));
+           strncat(bufferToSendClient, connectionHeader_p2, strlen(connectionHeader_p2));
         }
-        write(fd_client, CRLF, strlen(CRLF));
+        strncat(bufferToSendClient, CRLF, strlen(CRLF));
 
         // Add keep-alive header
         if (request->keep_alive == 1) {
          char keepAliveHeader[] = "Keep-Alive: timeout=5, max=100\r\n";
-         write(fd_client, keepAliveHeader, strlen(keepAliveHeader));
+         strncat(bufferToSendClient, keepAliveHeader, strlen(keepAliveHeader));
         }
 
 
         if (clientFile -> fileType == 0) {
             // html file
             char header3[] = "Content-Type: text/html; charset=UTF-8\r\n\r\n";
-			write(fd_client, header3, strlen(header3));
+			         strncat(bufferToSendClient, header3, strlen(header3));
 
             int c;
             // Read and write the file one byte at a time
             while ((c = getc(filePtr)) != EOF) {
                 char cToStr[1];
                 cToStr[0] = c;
-				write(fd_client, cToStr, 1);
+				            strncat(bufferToSendClient, cToStr, 1);
             }
 
         } else if (clientFile -> fileType == 1) {
@@ -310,66 +348,83 @@ void makeServerResponsePipelinedVesion(struct file * clientFile, char * bufferTo
 
             // From https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
             char header3[] = "Content-Type: text/css; charset=UTF-8\r\n\r\n";
-			write(fd_client, header3, strlen(header3));
+			         strncat(bufferToSendClient, header3, strlen(header3));
 
             int c;
             // Read and write the file one byte at a time
             while ((c = getc(filePtr)) != EOF) {
                 char cToStr[1];
                 cToStr[0] = c;
-				write(fd_client, cToStr, 1);
+				            strncat(bufferToSendClient, cToStr, 1);
             }
+            pthread_mutex_lock( & write_to_client_mutex);
+            write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
+            pthread_mutex_unlock( & write_to_client_mutex);
 
         } else if (clientFile -> fileType == 2) {
             // js file
 
             // From https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
             char header3[] = "Content-Type: text/javascript; charset=UTF-8\r\n\r\n";
-			write(fd_client, header3, strlen(header3));
+			         strncat(bufferToSendClient, header3, strlen(header3));
 
             int c;
             // Read and write the file one byte at a time
             while ((c = getc(filePtr)) != EOF) {
                 char cToStr[1];
                 cToStr[0] = c;
-				write(fd_client, cToStr, 1);
+				            strncat(bufferToSendClient, cToStr, 1);
             }
+            pthread_mutex_lock( & write_to_client_mutex);
+            write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
+            pthread_mutex_unlock( & write_to_client_mutex);
+
 
         } else if (clientFile -> fileType == 3) {
             // txt file
 
             // From https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
             char header3[] = "Content-Type: text/plain; charset=UTF-8\r\n\r\n";
-			write(fd_client, header3, strlen(header3));
+			         strncat(bufferToSendClient, header3, strlen(header3));
 
             int c;
             // Read and write the file one byte at a time
             while ((c = getc(filePtr)) != EOF) {
                 char cToStr[1];
                 cToStr[0] = c;
-				write(fd_client, cToStr, 1);
+				            strncat(bufferToSendClient, cToStr, 1);
             }
+            pthread_mutex_lock( & write_to_client_mutex);
+            write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
+            pthread_mutex_unlock( & write_to_client_mutex);
+
         } else if (clientFile -> fileType == 4) {
             // jpg file
 
             // From https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
             char header3[] = "Content-Type: image/jpeg\r\n\r\n";
-			write(fd_client, header3, strlen(header3));
+			         strncat(bufferToSendClient, header3, strlen(header3));
 
             int c;
             // Read and write the file one byte at a time
             while ((c = fgetc(filePtr)) != EOF) {
                 char cToStr[1];
                 cToStr[0] = c;
-				write(fd_client, cToStr, 1);
+				            strncat(bufferToSendClient, cToStr, 1);
             }
+            pthread_mutex_lock( & write_to_client_mutex);
+            write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
+            pthread_mutex_unlock( & write_to_client_mutex);
 
         } else {
             // invalid file type
             char errorStatusLine[] = "400 Bad Request\r\n";
-            write(fd_client, errorStatusLine, strlen(errorStatusLine));
-            write(fd_client, errorWebpage400, strlen(errorWebpage400));
-			* currentStatusCode = 400;
+            strncat(bufferToSendClient, errorStatusLine, strlen(errorStatusLine));
+            strncat(bufferToSendClient, errorWebpage400, strlen(errorWebpage400));
+            pthread_mutex_lock( & write_to_client_mutex);
+            write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
+            pthread_mutex_unlock( & write_to_client_mutex);
+			         * currentStatusCode = 400;
         }
     }
 }
@@ -479,7 +534,7 @@ void * processRequestByThread(void * t) {
     // construct and send the HTTP response
     printf("file in clientFile = \"%s\"\n", clientFile -> filePath);
     char * bufferToSendClient = (char * ) malloc(sizeof(char) * MAX_BUF); // max http request message len
-    makeServerResponse(clientFile, bufferToSendClient, thread_data -> httpCode, request);
+    makeServerResponsePipelinedVesion(clientFile, bufferToSendClient, thread_data -> httpCode, request, thread_data -> fd_client, 0);
     printf("buff to send to client = ---------------------\n%s\n", bufferToSendClient);
 
     // pthread_mutex_lock( & write_to_client_mutex);
