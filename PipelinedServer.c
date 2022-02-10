@@ -366,7 +366,8 @@ void makeServerResponsePipelinedVesion(struct file * clientFile, char * bufferTo
         // -1 to not write the null terminator as sprintf null terminates
 		      strncat(bufferToSendClient, sizeToStr, size - 1);
 
-		      strncat(bufferToSendClient, CRLF, strlen(CRLF));
+        char carriageReturn[] = "\r\n";
+		      strncat(bufferToSendClient, carriageReturn, strlen(carriageReturn));
 
         // Add Connection header
         char connectionHeader_p1[] = "Connection: ";
@@ -378,7 +379,7 @@ void makeServerResponsePipelinedVesion(struct file * clientFile, char * bufferTo
            char connectionHeader_p2[] = "close";
            strncat(bufferToSendClient, connectionHeader_p2, strlen(connectionHeader_p2));
         }
-        strncat(bufferToSendClient, CRLF, strlen(CRLF));
+        strncat(bufferToSendClient, carriageReturn, strlen(carriageReturn));
 
         // Add keep-alive header
         if (request->keep_alive == 1) {
