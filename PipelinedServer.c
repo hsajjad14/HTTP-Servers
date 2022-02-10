@@ -458,20 +458,21 @@ void makeServerResponsePipelinedVesion(struct file * clientFile, char * bufferTo
 
         } else if (clientFile -> fileType == 4) {
             // jpg file
+            pthread_mutex_lock( & write_to_client_mutex);
+            write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
 
             // From https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
             char header3[] = "Content-Type: image/jpeg\r\n\r\n";
-			         strncat(bufferToSendClient, header3, strlen(header3));
+            write(fd_client, header3, strlen(header3));
 
             int c;
             // Read and write the file one byte at a time
             while ((c = fgetc(filePtr)) != EOF) {
                 char cToStr[1];
                 cToStr[0] = c;
-				            strncat(bufferToSendClient, cToStr, 1);
+                write(fd_client, cToStr, 1);
             }
-            pthread_mutex_lock( & write_to_client_mutex);
-            write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
+            
             pthread_mutex_unlock( & write_to_client_mutex);
 
         } else {
