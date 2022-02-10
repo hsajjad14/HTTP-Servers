@@ -17,3 +17,7 @@ GET /dir1/dir2/dir3/square.js HTTP/1.0
 
 ### browser
 localhost:portnumber/filepath
+
+
+### to run pipelined server
+gcc -pthread -Wall -g PipelinedServer.c -lm -o PipelinedServer
