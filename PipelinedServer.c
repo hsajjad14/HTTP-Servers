@@ -1,3 +1,6 @@
+#define _XOPEN_SOURCE
+#define _GNU_SOURCE
+
 #include "HTTPServer.h"
 
 #include <pthread.h>
@@ -517,6 +520,8 @@ void * processRequestByThread(void * t) {
     //int req_bytes_read = get_msg(fd_client, buf);
 
     if (bytes_read < 0) {
+        printf("bytes read%d\n", bytes_read);
+
         *(thread_data -> httpCode) = 400; // something went wrong with the request reading (tentative)
     }
 
@@ -554,6 +559,7 @@ void * processRequestByThread(void * t) {
     // set error codes if request file type, method or versions are invalid
     clientFile -> fileType = find_ext(request -> uri);
     if (clientFile -> fileType < 0 || is_get_req(request) == 0) {
+        printf("AAAAAAAAAAAHHHHHHHHH\n");
         *(thread_data -> httpCode) = 400; // bad request
     }
     // Technically this server follows the HTTP/1.0 protocol, but requests from browser
@@ -579,6 +585,7 @@ void * processRequestByThread(void * t) {
     struct stat * st = (struct stat * ) malloc(sizeof(struct stat));
     clientFile -> fileSize = fsize(clientFile -> filePath, st);
     if (clientFile -> fileSize == -1) {
+        printf("BHHHHHHHHHHHH path = %s\n", clientFile -> filePath);
         *(thread_data -> httpCode) = 400;
     }
     free(st);
