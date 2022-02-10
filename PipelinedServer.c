@@ -520,8 +520,15 @@ void * processRequestByThread(void * t) {
     struct threadData * thread_data = (struct threadData * ) t;
 
     pthread_mutex_lock( & read_from_client_mutex);
+    pthread_mutex_lock( & keep_alive_mutex);
+    if (keep_alive == 0) {
+        pthread_mutex_unlock( & read_from_client_mutex);
+        return NULL;
+    }
+    pthread_mutex_unlock( & keep_alive_mutex);
     int bytes_read = get_msg(thread_data -> fd_client, thread_data -> buf);
     pthread_mutex_unlock( & read_from_client_mutex);
+
     // unsure about this
     if (bytes_read < 0) {
         return NULL;
