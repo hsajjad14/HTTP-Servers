@@ -19,7 +19,7 @@
 #include "HTTPServer.h"
 
 // Error webpages (for requests from a browser)
-char *errorWebpage301 =
+const char errorWebpage301[] =
     "Content-Type: text/html; charset=UTF-8\r\n\r\n"
     "<!DOCTYPE html>\r\n"
     "<html><head><title>HTTP Error Message</title>\r\n"
@@ -27,7 +27,7 @@ char *errorWebpage301 =
     "<body><center><h1>301: Moved Permanently</h1><br><p>The requested file has moved to a new location.</p>\r\n"
     "</center></body></html>\r\n";
 
-char *errorWebpage304 =
+const char errorWebpage304[] =
     "Content-Type: text/html; charset=UTF-8\r\n\r\n"
     "<!DOCTYPE html>\r\n"
     "<html><head><title>HTTP Error Message</title>\r\n"
@@ -35,7 +35,7 @@ char *errorWebpage304 =
     "<body><center><h1>304: Not Modified</h1><br><p>The URL has not been modified since the specified date.</p>\r\n"
     "</center></body></html>\r\n";
 
-char *errorWebpage400 =
+const char errorWebpage400[] =
     "Content-Type: text/html; charset=UTF-8\r\n\r\n"
     "<!DOCTYPE html>\r\n"
     "<html><head><title>HTTP Error Message</title>\r\n"
@@ -43,7 +43,7 @@ char *errorWebpage400 =
     "<body><center><h1>400: Bad Request</h1><br><p>The server did not understand the request.</p>\r\n"
     "</center></body></html>\r\n";
 
-char *errorWebpage404 =
+const char errorWebpage404[] =
     "Content-Type: text/html; charset=UTF-8\r\n\r\n"
     "<!DOCTYPE html>\r\n"
     "<html><head><title>HTTP Error Message</title>\r\n"
@@ -51,7 +51,7 @@ char *errorWebpage404 =
     "<body><center><h1>404: Not Found</h1><br><p>The server could not find the requested file.</p>\r\n"
     "</center></body></html>\r\n";
 
-char *errorWebpage414 =
+const char errorWebpage414[] =
     "Content-Type: text/html; charset=UTF-8\r\n\r\n"
     "<!DOCTYPE html>\r\n"
     "<html><head><title>HTTP Error Message</title>\r\n"
@@ -59,7 +59,7 @@ char *errorWebpage414 =
     "<body><center><h1>414: Request URL Too Long</h1><br><p>The URL in the request is too long.</p>\r\n"
     "</center></body></html>\r\n";
 
-char *errorWebpage501 =
+const char errorWebpage501[] =
     "Content-Type: text/html; charset=UTF-8\r\n\r\n"
     "<!DOCTYPE html>\r\n"
     "<html><head><title>HTTP Error Message</title>\r\n"
@@ -67,7 +67,7 @@ char *errorWebpage501 =
     "<body><center><h1>501: Not Implemented</h1><br><p>The server does not support the requested functionality.</p>\r\n"
     "</center></body></html>\r\n";
 
-char *errorWebpage505 =
+const char errorWebpage505[] =
     "Content-Type: text/html; charset=UTF-8\r\n\r\n"
     "<!DOCTYPE html>\r\n"
     "<html><head><title>HTTP Error Message</title>\r\n"

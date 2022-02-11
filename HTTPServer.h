@@ -25,6 +25,15 @@
 
 #define REQ_LINE_SIZE 200
 
+extern const char errorWebpage301[];
+extern const char errorWebpage304[];
+extern const char errorWebpage400[];
+extern const char errorWebpage404[];
+extern const char errorWebpage414[];
+extern const char errorWebpage501[];
+extern const char errorWebpage505[];
+
+
 struct file {
     int fileType;
     // 0 = .html
