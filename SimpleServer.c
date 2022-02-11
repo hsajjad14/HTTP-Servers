@@ -34,8 +34,6 @@ int main(int argc, char ** argv) {
             continue;
         }
 
-        printf("got client connection ---\n");
-
         if (!fork()) {
 
             // Child processes returns 0
@@ -53,8 +51,6 @@ int main(int argc, char ** argv) {
                 * httpCode = 400; // Something went wrong with the request reading (tentative)
             }
 
-            printf("%s\n", buf);
-
             struct file * clientFile = (struct file * ) malloc(sizeof(struct file));
 
             struct http_request * request =
@@ -71,11 +67,6 @@ int main(int argc, char ** argv) {
 
             // Parse the client request
             parseRequest(buf, request);
-            //TODO: remove
-            printf("method parsed out: %s\n", request -> method);
-            printf("uri parsed out: %s\n", request -> uri);
-            printf("http ver parsed out: %s\n", request -> version);
-
             // Set error codes if request file type, method or versions are invalid
             clientFile -> fileType = find_ext(request -> uri);
             if (clientFile -> fileType < 0 || is_get_req(request) == 0) {
@@ -85,7 +76,6 @@ int main(int argc, char ** argv) {
             // Technically this server follows the HTTP/1.0 protocol, but requests from browser
             // may be an HTTP/1.1 request
             if (strncmp(request -> version, "HTTP/1.0", 8) != 0 && strncmp(request -> version, "HTTP/1.1", 8) != 0) {
-				//printf("Got here: %d %d\n", strncmp(request -> version, "HTTP/1.0", 8), strncmp(request -> version, "HTTP/1.1", 8));
 				* httpCode = 505; // HTTP version not supported
             }
 
@@ -97,12 +87,6 @@ int main(int argc, char ** argv) {
             strncpy(clientFile -> filePath, http_root_path, strlen(http_root_path));
             strncpy(clientFile -> filePath + strlen(http_root_path), request -> uri, strlen(request -> uri));
             clientFile -> filePath[strlen(http_root_path) + strlen(request -> uri) + 1] = '\0';
-            printf("A file in clientFile = \"%s\"\n", clientFile -> filePath);
-
-            printf("err code A = %d\n", * httpCode);
-            // clientFile->fileType = 2; // test file types
-            // clientFile->fileSize = 2000;
-
             struct stat * st = (struct stat * ) malloc(sizeof(struct stat));
             clientFile -> fileSize = fsize(clientFile -> filePath, st);
             if (clientFile -> fileSize == -1) {
@@ -110,14 +94,10 @@ int main(int argc, char ** argv) {
             }
             free(st);
 
-            printf("err code B = %d\n", * httpCode);
-
             // Construct and send the HTTP response
-            printf("file in clientFile = \"%s\"\n", clientFile -> filePath);
             makeServerResponse(clientFile, httpCode, request, fd_client, 1);
 
             close(fd_client);
-            printf("closing client connection--\n");
 
             exit(0);
         }

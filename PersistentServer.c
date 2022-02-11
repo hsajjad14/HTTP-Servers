@@ -37,10 +37,7 @@ int main(int argc, char ** argv) {
             continue;
         }
 
-        printf("got client connection ---\n");
-
         if (!fork()) {
-            printf("\t\tWhere are we B\n");
             // Child processes returns 0
             close(* fd_server);
             free(fd_server);
@@ -54,7 +51,6 @@ int main(int argc, char ** argv) {
                 perror("setsockopt send timout");
             }
 
-            //printf("\t\tWhere are we A\n");
             int * httpCode = (int * ) malloc(sizeof(int));
             * httpCode = 200; // default value
 
@@ -63,14 +59,11 @@ int main(int argc, char ** argv) {
             int keep_alive = 1; // Assume 1 because this is a persistent server
             int requests = 0;
             while (keep_alive == 1 && * httpCode == 200 && ((bytes_read = get_msg(fd_client, buf)) > 0) && requests < MAX_REQUESTS) {
-                //printf("\t\tWhere are we C\n");
                 * httpCode = 200; // Default value
 
                 if (bytes_read < 0) {
                     * httpCode = 400; // Something went wrong with the request reading
                 }
-
-                printf("buf: %s, bytes-read: %d\n", buf, bytes_read);
 
                 struct file * clientFile = (struct file * ) malloc(sizeof(struct file));
 
@@ -94,10 +87,6 @@ int main(int argc, char ** argv) {
                 }
                 // Check if connection closed from clients end
                 keep_alive = request->keep_alive;
-                //TODO: remove
-                printf("method parsed out: %s\n", request -> method);
-                printf("uri parsed out: %s\n", request -> uri);
-                printf("http ver parsed out: %s\n", request -> version);
 
                 // Set error codes if request file type, method or versions are invalid
                 clientFile -> fileType = find_ext(request -> uri);
@@ -118,9 +107,6 @@ int main(int argc, char ** argv) {
                 strncpy(clientFile -> filePath, http_root_path, strlen(http_root_path));
                 strncpy(clientFile -> filePath + strlen(http_root_path), request -> uri, strlen(request -> uri));
                 clientFile -> filePath[strlen(http_root_path) + strlen(request -> uri) + 1] = '\0';
-                //printf("A file in clientFile = \"%s\"\n", clientFile -> filePath);
-
-                printf("err code A = %d\n", * httpCode);
 
                 struct stat * st = (struct stat * ) malloc(sizeof(struct stat));
                 clientFile -> fileSize = fsize(clientFile -> filePath, st);
@@ -129,10 +115,6 @@ int main(int argc, char ** argv) {
                 }
                 free(st);
 
-                printf("err code B = %d\n", * httpCode);
-
-                // Construct and send the HTTP response
-                printf("file in clientFile = \"%s\"\n", clientFile -> filePath);
                 makeServerResponse(clientFile, httpCode, request, fd_client, 0);
                
                 if (request -> keep_alive == 0) {
@@ -146,7 +128,6 @@ int main(int argc, char ** argv) {
 
             }
 
-            //printf("\t\tWhere are we D\n");
             close(fd_client);
             exit(0);
         }
