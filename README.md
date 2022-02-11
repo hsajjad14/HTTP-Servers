@@ -6,7 +6,19 @@ Servers for the HTTP 1.0 + 1.1 protocols capable of handling GET method requests
 ## usage
 "nc -C host port" adds a crlf on every enter
 
-### run the server
+### compiling
+./compile.sh
+
+### compile the simple server
+gcc -std=gnu99 -Wall -g SimpleServer.c Helpers.c -lm -o SimpleServer
+
+### compile the persistent server
+gcc -std=gnu99 -Wall -g PersistentServer.c Helpers.c -lm -o PersistentServer
+
+### compile the pipelined server
+gcc -std=gnu99 -pthread -Wall -g PipelinedServer.c Helpers.c -lm -o PipelinedServer
+
+### running the servers
 ./SimpleServer 8010 ./
   
 ### in local directory 
