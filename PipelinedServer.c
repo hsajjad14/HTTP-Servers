@@ -342,6 +342,9 @@ void makeServerResponsePipelinedVesion(struct file * clientFile, char * bufferTo
                 cToStr[0] = c;
 				            strncat(bufferToSendClient, cToStr, 1);
             }
+            pthread_mutex_lock( & write_to_client_mutex);
+            write(fd_client, bufferToSendClient, strlen(bufferToSendClient));
+            pthread_mutex_unlock( & write_to_client_mutex);
 
         } else if (clientFile -> fileType == 1) {
             // css file
