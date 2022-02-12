@@ -19,7 +19,7 @@ int main(int argc, char ** argv) {
 
     struct sockaddr_in server_addr, client_addr;
     socklen_t sin_len = sizeof(client_addr);
-    int * fd_server = (int *) malloc(sizeof(int)); 
+    int * fd_server = (int *) malloc(sizeof(int));
     int fd_client;
 
     char buf[MAX_BUF];
@@ -76,7 +76,7 @@ int main(int argc, char ** argv) {
             // Technically this server follows the HTTP/1.0 protocol, but requests from browser
             // may be an HTTP/1.1 request
             if (strncmp(request -> version, "HTTP/1.0", 8) != 0 && strncmp(request -> version, "HTTP/1.1", 8) != 0) {
-				* httpCode = 505; // HTTP version not supported
+				            * httpCode = 505; // HTTP version not supported
             }
 
             // get full path of requested file
@@ -96,6 +96,20 @@ int main(int argc, char ** argv) {
 
             // Construct and send the HTTP response
             makeServerResponse(clientFile, httpCode, request, fd_client, 1);
+
+            free(request -> version);
+            free(request -> method);
+            free(request -> uri);
+            free(request -> accept);
+            free(request -> if_match);
+            free(request -> if_none_match);
+            free(request -> if_modified_since);
+            free(request -> if_unmodified_since);
+            free(request);
+
+            free(clientFile -> fileName);
+            free(clientFile -> filePath);
+            free(clientFile);
 
             close(fd_client);
 

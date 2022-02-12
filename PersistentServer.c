@@ -83,6 +83,16 @@ int main(int argc, char ** argv) {
                 int num_request_lines = parseRequest(buf, request);
                 // Loop again; server did not get a complete request (initial line).
                 if (num_request_lines == 0) {
+                    free(request -> version);
+                    free(request -> method);
+                    free(request -> uri);
+                    free(request -> accept);
+                    free(request -> if_match);
+                    free(request -> if_none_match);
+                    free(request -> if_modified_since);
+                    free(request -> if_unmodified_since);
+                    free(request);
+                    free(clientFile);
                     continue;
                 }
                 // Check if connection closed from clients end
@@ -116,12 +126,25 @@ int main(int argc, char ** argv) {
                 free(st);
 
                 makeServerResponse(clientFile, httpCode, request, fd_client, 0);
-               
+
                 if (request -> keep_alive == 0) {
                     // "Timeout" because the client does not expect persistent connection
                     * httpCode = 408; // 408 Request Timeout
                 }
 
+                free(request -> version);
+                free(request -> method);
+                free(request -> uri);
+                free(request -> accept);
+                free(request -> if_match);
+                free(request -> if_none_match);
+                free(request -> if_modified_since);
+                free(request -> if_unmodified_since);
+                free(request);
+
+                free(clientFile -> fileName);
+                free(clientFile -> filePath);
+                free(clientFile);
                 // Reset the buffer
                 memset(buf, 0, MAX_BUF);
                 requests++;

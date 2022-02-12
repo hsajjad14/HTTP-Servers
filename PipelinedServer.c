@@ -526,18 +526,26 @@ void * processRequestByThread(void * t) {
     char * bufferToSendClient = (char * ) malloc(sizeof(char) * MAX_BUF); // max http request message len
     makeServerResponsePipelinedVesion(clientFile, bufferToSendClient, thread_data -> httpCode, request, thread_data -> fd_client, 0);
 
-    // pthread_mutex_lock( & write_to_client_mutex);
-    // write(thread_data -> fd_client, bufferToSendClient, strlen(bufferToSendClient));
-    // pthread_mutex_unlock( & write_to_client_mutex);
-
     if (request -> keep_alive == 0) {
         // "timeout" because the client does not expect persistent connection
         *(thread_data -> httpCode) = 408; //408 Request Timeout
     }
-    return NULL;
-}
 
-void * doNothing(void * t) {
+    free(bufferToSendClient);
+    free(request -> version);
+    free(request -> method);
+    free(request -> uri);
+    free(request -> accept);
+    free(request -> if_match);
+    free(request -> if_none_match);
+    free(request -> if_modified_since);
+    free(request -> if_unmodified_since);
+    free(request);
+
+    free(clientFile -> fileName);
+    free(clientFile -> filePath);
+    free(clientFile);
+
     return NULL;
 }
 
@@ -641,6 +649,8 @@ int main(int argc, char ** argv) {
         // parent process
         close(fd_client);
     }
+
+    free(t_val);
 
     return 0;
 
