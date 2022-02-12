@@ -40,7 +40,7 @@ localhost:portnumber/filepath
 ## Features
 
 ### Simple Server
-The simple server is a C program that runs indefinitely, with a socket open and listening to connections. Whenver a connection is recieved a new process is forked and that new child process handles reading, processing and responding to a single request. After it responds that client socket is closed, and a new connection is created for every request from any client.  
+The simple server is a C program that runs indefinitely, with a socket open and listening to connections. Whenever a connection is received a new process is forked, and that new child process handles reading, processing and responding to a single request. After it responds, that client socket is closed, and a new connection is created for every request from any client.  
 
 ### Persistence
 The persistence server was built over top the simple server. However, what is different is first the client socket that is created has a timeout timer, so if nothing is recieved within the timeout, the client socket (connection) closes. Another difference is that the server keeps track of two variables *keep-alive* and *requests*. *Keep-alive* is a parameter set under the Connection header, set by the client. While the Connection header is set to *keep-alive* and number of requests recieved by the client is less than *MAX_REQUESTS* the connection remains open, otherwise it is closed.
