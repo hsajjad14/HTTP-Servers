@@ -1,4 +1,3 @@
-# csc358-a1
 
 Servers for the HTTP 1.0 + 1.1 protocols capable of handling GET method requests for files with the following extensions: .html .css .js .txt .jpg. 
 
